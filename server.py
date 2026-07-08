@@ -230,16 +230,40 @@ def check_token_leak(sent_message: dict):
 
 
 def send_post(markdown: str, target) -> tuple[bool, str]:
-    ok, resolved = resolve_media(markdown)
-    if not ok:
-        return False, resolved
-    ok, result = api_call(
-        "sendRichMessage", chat_id=target, rich_message={"markdown": resolved}
-    )
-    if not ok:
-        return False, result
-    check_token_leak(result)
-    return True, "ok"
+    try:
+        ok, resolved = resolve_media(markdown)
+        if not ok:
+            return False, resolved
+        ok, result = api_call(
+            "sendRichMessage", chat_id=target, rich_message={"markdown": resolved}
+        )
+        if not ok:
+            return False, result
+        check_token_leak(result)
+        return True, "ok"
+    except Exception as e:
+        log.exception("send_post %s", target)
+        return False, f"Ошибка отправки: {e}"
+
+
+# Через сколько секунд зависший «sending» считается прерванным
+SENDING_STALE_AFTER = 180
+
+
+def finish_scheduled(uid, post_id, ok: bool, result: str, target, markdown):
+    with _data_lock:
+        data = load_data()
+        box = user_data(data, uid)
+        if ok:
+            # успешные уходят из очереди в журнал публикаций
+            box["scheduled"] = [p for p in box["scheduled"] if p["id"] != post_id]
+            log_published(box, target, markdown)
+        else:
+            for p in box["scheduled"]:
+                if p["id"] == post_id:
+                    p["status"] = "error"
+                    p["error"] = result
+        save_data(data)
 
 
 def scheduler_loop():
@@ -250,29 +274,31 @@ def scheduler_loop():
             due = []
             with _data_lock:
                 data = load_data()
+                changed = False
                 for uid, box in data["users"].items():
                     for post in box.get("scheduled", []):
                         if post["status"] == "pending" and post["when"] <= time.time():
                             post["status"] = "sending"
+                            post["started"] = int(time.time())
                             due.append((uid, post))
-                if due:
+                            changed = True
+                        elif (post["status"] == "sending"
+                              and time.time() - post.get("started", 0) > SENDING_STALE_AFTER):
+                            # зависшая отправка (перезапуск сервера или сбой)
+                            post["status"] = "error"
+                            post["error"] = ("Отправка была прервана. Проверьте, вышел ли "
+                                             "пост в канале, и запланируйте заново.")
+                            changed = True
+                if changed:
                     save_data(data)
             for uid, post in due:
-                ok, result = send_post(post["markdown"], post["target"])
-                with _data_lock:
-                    data = load_data()
-                    box = user_data(data, uid)
-                    if ok:
-                        # успешные уходят из очереди в журнал публикаций
-                        box["scheduled"] = [p for p in box["scheduled"]
-                                            if p["id"] != post["id"]]
-                        log_published(box, post["target"], post["markdown"])
-                    else:
-                        for p in box["scheduled"]:
-                            if p["id"] == post["id"]:
-                                p["status"] = "error"
-                                p["error"] = result
-                    save_data(data)
+                # ошибка одного поста не должна ронять обработку остальных
+                try:
+                    ok, result = send_post(post["markdown"], post["target"])
+                except Exception as e:
+                    ok, result = False, f"Внутренняя ошибка: {e}"
+                finish_scheduled(uid, post["id"], ok, result,
+                                 post["target"], post["markdown"])
                 log.info("Отложенный пост %s → %s: %s",
                          post["id"], post["target"], "ok" if ok else result)
         except Exception:
