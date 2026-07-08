@@ -81,6 +81,22 @@
   aside .foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
   aside .foot a:hover { text-decoration: underline; }
 
+  /* ── Сворачивание бокового меню (только ПК) ── */
+  .brand-text { flex: 1; min-width: 0; }
+  #sideToggle {
+    width: 26px; height: 26px; border-radius: 7px; color: var(--muted);
+    display: grid; place-items: center; flex: 0 0 auto;
+  }
+  #sideToggle:hover { background: var(--bg); color: var(--ink); }
+  #app.side-collapsed { grid-template-columns: 64px 1fr; }
+  #app.side-collapsed aside { padding: 20px 9px 16px; }
+  #app.side-collapsed .brand { flex-direction: column; gap: 8px; padding: 0 0 16px; }
+  #app.side-collapsed .brand-text { display: none; }
+  #app.side-collapsed #sideToggle svg { transform: rotate(180deg); }
+  #app.side-collapsed aside nav button { justify-content: center; padding: 11px 0; }
+  #app.side-collapsed .lbl, #app.side-collapsed .cnt,
+  #app.side-collapsed aside .foot { display: none; }
+
   #content { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .view { flex: 1; display: none; flex-direction: column; overflow: hidden; }
   .view.active { display: flex; }
@@ -414,6 +430,8 @@
       padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
     }
     .brand, aside .foot { display: none; }
+    #app.side-collapsed { grid-template-columns: 1fr; }
+    #app.side-collapsed .lbl { display: inline; }
     aside nav { flex-direction: row; flex: 1; gap: 0; }
     aside nav button {
       flex: 1; flex-direction: column; justify-content: center; gap: 3px;
@@ -468,24 +486,27 @@
 <aside>
   <div class="brand">
     <div class="logo">Md</div>
-    <div><div class="name">Студия постов</div><div class="tag">rich-формат Telegram</div></div>
+    <div class="brand-text"><div class="name">Студия постов</div><div class="tag">rich-формат Telegram</div></div>
+    <button id="sideToggle" title="Свернуть меню">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
+    </button>
   </div>
   <nav id="mainNav">
-    <button data-view="editor" class="active">
+    <button data-view="editor" class="active" title="Редактор">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
-      Редактор
+      <span class="lbl">Редактор</span>
     </button>
-    <button data-view="drafts">
+    <button data-view="drafts" title="Черновики">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-      Черновики <span class="cnt" id="cntDrafts"></span>
+      <span class="lbl">Черновики</span> <span class="cnt" id="cntDrafts"></span>
     </button>
-    <button data-view="scheduled">
+    <button data-view="scheduled" title="Отложенные">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-      Отложенные <span class="cnt" id="cntScheduled"></span>
+      <span class="lbl">Отложенные</span> <span class="cnt" id="cntScheduled"></span>
     </button>
-    <button data-view="channels">
+    <button data-view="channels" title="Каналы">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 11l18-7-7 18-2.5-7.5z"/></svg>
-      Каналы <span class="cnt" id="cntChannels"></span>
+      <span class="lbl">Каналы</span> <span class="cnt" id="cntChannels"></span>
     </button>
   </nav>
   <div class="foot" id="sideFoot">Публикация через Bot API 10.1 · sendRichMessage</div>
@@ -730,6 +751,16 @@ async function doLogin() {
 const fmtDate = ts => new Date(ts * 1000).toLocaleString('ru-RU',
   {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ── Сворачивание бокового меню ── */
+if (localStorage.getItem('sideCollapsed') === '1')
+  document.getElementById('app').classList.add('side-collapsed');
+$('sideToggle').addEventListener('click', () => {
+  const app = document.getElementById('app');
+  app.classList.toggle('side-collapsed');
+  localStorage.setItem('sideCollapsed',
+    app.classList.contains('side-collapsed') ? '1' : '0');
+});
 
 /* ── Навигация ── */
 document.querySelectorAll('#mainNav button').forEach(b => b.addEventListener('click', () => {
