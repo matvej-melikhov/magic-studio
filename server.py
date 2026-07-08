@@ -3,10 +3,8 @@
 Запуск:  python3 server.py   (токен берётся из .env или переменной BOT_TOKEN)
 Открыть с телефона: http://<IP-мака-в-Wi-Fi>:8080
 
-Картинки хранятся в Telegram: загруженный файл отправляется в чат владельца
-с ботом (и сразу удаляется) — остаётся file_id. В markdown картинка живёт
-как плейсхолдер tg-file://<file_id>, который резолвится в свежую HTTPS-ссылку
-только в момент превью/публикации (file_path действует ~1 час).
+Данные (сессии, каналы, черновики, отложенные, публикации) — в SQLite
+(storage.py, файл studio.db). Старый data.json импортируется автоматически.
 """
 
 import base64
@@ -18,11 +16,11 @@ import socket
 import sys
 import threading
 import time
-import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import requests
 
+import storage
 from env_utils import load_env
 from s3_utils import S3Storage
 
@@ -35,39 +33,23 @@ API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 FILE_URL = f"https://api.telegram.org/file/bot{BOT_TOKEN}"
 
 PORT = int(os.environ.get("PORT", "8080"))
-STATE_FILE = "state.json"
-DATA_FILE = "data.json"
 EDITOR_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "editor.html")
-
-# Данные пользователей и сессии — в data.json:
-# {"sessions": {token: {user_id, name}}, "users": {uid: {channels, drafts, …}}}
-_data_lock = threading.Lock()
-
 LOGIN_CODES_FILE = "login_codes.json"
-EMPTY_USER = {"channels": [], "drafts": [], "scheduled": [], "published": []}
 
+log = logging.getLogger("editor-server")
 
-def load_data() -> dict:
-    try:
-        data = json.load(open(DATA_FILE, encoding="utf-8"))
-    except (OSError, ValueError):
-        data = {}
-    data.setdefault("sessions", {})
-    data.setdefault("users", {})
-    return data
+BOT_USERNAME = ""  # заполняется в main() из getMe
 
+# Плейсхолдер картинки в markdown-черновике
+TG_FILE_RE = re.compile(r"tg-file://([A-Za-z0-9_-]+)")
 
-def user_data(data: dict, user_id) -> dict:
-    box = data["users"].setdefault(str(user_id), {})
-    for key, empty in EMPTY_USER.items():
-        box.setdefault(key, [])
-    # миграция: раньше опубликованные оставались в очереди со статусом sent
-    stale = [p for p in box["scheduled"] if p.get("status") == "sent"]
-    if stale:
-        box["scheduled"] = [p for p in box["scheduled"] if p.get("status") != "sent"]
-        for p in stale:
-            log_published(box, p["target"], p["markdown"])
-    return box
+# Одноразовый хостинг-трамплин: серверы Telegram не могут скачивать напрямую
+# из сетей Selectel, поэтому при публикации медиа перезаливается на litterbox
+# (живёт 1 час — Telegram перехостит картинку у себя в момент отправки)
+LITTERBOX_API = "https://litterbox.catbox.moe/resources/internals/api.php"
+
+# Через сколько секунд зависший «sending» считается прерванным
+SENDING_STALE_AFTER = 180
 
 
 def consume_login_code(code: str) -> dict | None:
@@ -85,21 +67,15 @@ def consume_login_code(code: str) -> dict | None:
     return entry
 
 
-def save_data(data: dict):
-    tmp = DATA_FILE + ".tmp"
-    json.dump(data, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    os.replace(tmp, DATA_FILE)
-
-
-def log_published(box: dict, target: str, markdown: str):
-    title = markdown.strip().splitlines()[0][:80] if markdown.strip() else "(пусто)"
-    box["published"].insert(0, {
-        "id": uuid.uuid4().hex,
-        "target": target,
-        "title": title.lstrip("# ").strip(),
-        "when": int(time.time()),
-    })
-    del box["published"][200:]
+def api_call(method: str, files=None, **params):
+    if files:
+        resp = requests.post(f"{API_URL}/{method}", data=params, files=files, timeout=120)
+    else:
+        resp = requests.post(f"{API_URL}/{method}", json=params, timeout=60)
+    data = resp.json()
+    if data.get("ok"):
+        return True, data.get("result")
+    return False, data.get("description", "unknown error")
 
 
 def verify_channel_admin(username: str, user_id) -> tuple[bool, str | dict]:
@@ -113,14 +89,6 @@ def verify_channel_admin(username: str, user_id) -> tuple[bool, str | dict]:
     if not any(a.get("user", {}).get("id") == int(user_id) for a in admins):
         return False, "Вы не администратор этого канала."
     return True, chat
-
-# Плейсхолдер картинки в markdown-черновике
-TG_FILE_RE = re.compile(r"tg-file://([A-Za-z0-9_-]+)")
-
-# Одноразовый хостинг-трамплин: серверы Telegram не могут скачивать напрямую
-# из сетей Selectel, поэтому при публикации медиа перезаливается на litterbox
-# (живёт 1 час — Telegram перехостит картинку у себя в момент отправки)
-LITTERBOX_API = "https://litterbox.catbox.moe/resources/internals/api.php"
 
 
 def trampoline_upload(filename: str, blob: bytes) -> tuple[bool, str]:
@@ -137,21 +105,6 @@ def trampoline_upload(filename: str, blob: bytes) -> tuple[bool, str]:
     if not resp.ok or not resp.text.startswith("http"):
         return False, f"litterbox ответил: {resp.status_code} {resp.text[:200]}"
     return True, resp.text.strip()
-
-log = logging.getLogger("editor-server")
-
-BOT_USERNAME = ""  # заполняется в main() из getMe
-
-
-def api_call(method: str, files=None, **params):
-    if files:
-        resp = requests.post(f"{API_URL}/{method}", data=params, files=files, timeout=120)
-    else:
-        resp = requests.post(f"{API_URL}/{method}", json=params, timeout=60)
-    data = resp.json()
-    if data.get("ok"):
-        return True, data.get("result")
-    return False, data.get("description", "unknown error")
 
 
 def store_image(chat_id: int, filename: str, blob: bytes) -> tuple[bool, str]:
@@ -229,7 +182,8 @@ def check_token_leak(sent_message: dict):
         )
 
 
-def send_post(markdown: str, target) -> tuple[bool, str]:
+def send_post(markdown: str, target) -> tuple[bool, str | dict]:
+    """Публикует rich-пост. Возвращает (True, Message) или (False, ошибка)."""
     try:
         ok, resolved = resolve_media(markdown)
         if not ok:
@@ -240,30 +194,30 @@ def send_post(markdown: str, target) -> tuple[bool, str]:
         if not ok:
             return False, result
         check_token_leak(result)
-        return True, "ok"
+        return True, result
     except Exception as e:
         log.exception("send_post %s", target)
         return False, f"Ошибка отправки: {e}"
 
 
-# Через сколько секунд зависший «sending» считается прерванным
-SENDING_STALE_AFTER = 180
-
-
-def finish_scheduled(uid, post_id, ok: bool, result: str, target, markdown):
-    with _data_lock:
-        data = load_data()
-        box = user_data(data, uid)
-        if ok:
-            # успешные уходят из очереди в журнал публикаций
-            box["scheduled"] = [p for p in box["scheduled"] if p["id"] != post_id]
-            log_published(box, target, markdown)
-        else:
-            for p in box["scheduled"]:
-                if p["id"] == post_id:
-                    p["status"] = "error"
-                    p["error"] = result
-        save_data(data)
+def edit_post(markdown: str, target, message_id: int) -> tuple[bool, str]:
+    """Редактирует уже опубликованный rich-пост."""
+    try:
+        ok, resolved = resolve_media(markdown)
+        if not ok:
+            return False, resolved
+        ok, result = api_call(
+            "editMessageText",
+            chat_id=target,
+            message_id=message_id,
+            rich_message={"markdown": resolved},
+        )
+        if not ok:
+            return False, result
+        return True, "ok"
+    except Exception as e:
+        log.exception("edit_post %s/%s", target, message_id)
+        return False, f"Ошибка редактирования: {e}"
 
 
 def scheduler_loop():
@@ -271,34 +225,15 @@ def scheduler_loop():
     while True:
         time.sleep(15)
         try:
-            due = []
-            with _data_lock:
-                data = load_data()
-                changed = False
-                for uid, box in data["users"].items():
-                    for post in box.get("scheduled", []):
-                        if post["status"] == "pending" and post["when"] <= time.time():
-                            post["status"] = "sending"
-                            post["started"] = int(time.time())
-                            due.append((uid, post))
-                            changed = True
-                        elif (post["status"] == "sending"
-                              and time.time() - post.get("started", 0) > SENDING_STALE_AFTER):
-                            # зависшая отправка (перезапуск сервера или сбой)
-                            post["status"] = "error"
-                            post["error"] = ("Отправка была прервана. Проверьте, вышел ли "
-                                             "пост в канале, и запланируйте заново.")
-                            changed = True
-                if changed:
-                    save_data(data)
-            for uid, post in due:
+            due = storage.sched_take_due(SENDING_STALE_AFTER)
+            for post in due:
                 # ошибка одного поста не должна ронять обработку остальных
                 try:
                     ok, result = send_post(post["markdown"], post["target"])
                 except Exception as e:
                     ok, result = False, f"Внутренняя ошибка: {e}"
-                finish_scheduled(uid, post["id"], ok, result,
-                                 post["target"], post["markdown"])
+                message_id = result.get("message_id") if ok else None
+                storage.sched_finish(post, ok, "" if ok else str(result), message_id)
                 log.info("Отложенный пост %s → %s: %s",
                          post["id"], post["target"], "ok" if ok else result)
         except Exception:
@@ -324,12 +259,8 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length))
 
     def _session(self) -> dict | None:
-        """Сессия по заголовку X-Session, либо None."""
         token = self.headers.get("X-Session", "")
-        if not token:
-            return None
-        with _data_lock:
-            return load_data()["sessions"].get(token)
+        return storage.session_get(token) if token else None
 
     def do_GET(self):
         if self.path in ("/", "/index.html"):
@@ -346,10 +277,15 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 self._json({"ok": False, "error": "auth"}, 401)
                 return
-            with _data_lock:
-                data = load_data()
-                box = user_data(data, session["user_id"])
-                self._json({"ok": True, "name": session.get("name", ""), **box})
+            uid = session["user_id"]
+            self._json({
+                "ok": True,
+                "name": session.get("name", ""),
+                "channels": storage.channels_list(uid),
+                "drafts": storage.drafts_list(uid),
+                "scheduled": storage.sched_list(uid),
+                "published": storage.published_list(uid),
+            })
         else:
             self._send(404, b"not found", "text/plain")
 
@@ -361,15 +297,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not entry:
                     self._json({"ok": False, "error": "Неверный или устаревший код."})
                     return
-                token = uuid.uuid4().hex
-                with _data_lock:
-                    store = load_data()
-                    store["sessions"][token] = {
-                        "user_id": entry["user_id"], "name": entry.get("name", ""),
-                        "created": int(time.time()),
-                    }
-                    user_data(store, entry["user_id"])
-                    save_data(store)
+                token = storage.session_create(entry["user_id"], entry.get("name", ""))
                 self._json({"ok": True, "token": token})
                 return
 
@@ -396,24 +324,36 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/preview":
                 data = self._read_json()
                 ok, result = send_post(data["markdown"], uid)
-                self._json({"ok": ok, "error": None if ok else result})
+                self._json({"ok": ok, "error": None if ok else str(result)})
             elif self.path == "/api/publish":
                 data = self._read_json()
                 target = data.get("target", "").strip()
-                with _data_lock:
-                    store = load_data()
-                    allowed = {c["username"]
-                               for c in user_data(store, uid)["channels"]}
+                allowed = {c["username"] for c in storage.channels_list(uid)}
                 if target not in allowed:
                     self._json({"ok": False,
                                 "error": "Канал не подключён — добавьте его во вкладке «Каналы»."})
                     return
                 ok, result = send_post(data["markdown"], target)
                 if ok:
-                    with _data_lock:
-                        store = load_data()
-                        log_published(user_data(store, uid), target, data["markdown"])
-                        save_data(store)
+                    storage.published_add(uid, target, data["markdown"],
+                                          result.get("message_id"))
+                self._json({"ok": ok, "error": None if ok else str(result)})
+            elif self.path == "/api/published/update":
+                data = self._read_json()
+                post = storage.published_get(uid, data.get("id", ""))
+                if not post:
+                    self._json({"ok": False, "error": "Публикация не найдена."})
+                    return
+                if not post.get("message_id"):
+                    self._json({"ok": False, "error":
+                                "Для этого поста не сохранён message_id — "
+                                "редактировать можно только новые публикации."})
+                    return
+                ok, result = edit_post(data.get("markdown", ""),
+                                       post["target"], post["message_id"])
+                if ok:
+                    storage.published_update_markdown(uid, post["id"],
+                                                      data.get("markdown", ""))
                 self._json({"ok": ok, "error": None if ok else result})
             elif self.path == "/api/channels/add":
                 username = self._read_json().get("username", "").strip()
@@ -426,47 +366,18 @@ class Handler(BaseHTTPRequestHandler):
                 if not ok:
                     self._json({"ok": False, "error": chat})
                     return
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    box["channels"] = [c for c in box["channels"]
-                                       if c["username"] != username]
-                    box["channels"].append(
-                        {"username": username, "title": chat.get("title", username)})
-                    save_data(store)
+                storage.channel_add(uid, username, chat.get("title", username))
                 self._json({"ok": True})
             elif self.path == "/api/channels/remove":
-                username = self._read_json().get("username", "")
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    box["channels"] = [c for c in box["channels"]
-                                       if c["username"] != username]
-                    save_data(store)
+                storage.channel_remove(uid, self._read_json().get("username", ""))
                 self._json({"ok": True})
             elif self.path == "/api/drafts/save":
                 data = self._read_json()
-                draft_id = data.get("id") or uuid.uuid4().hex
-                markdown = data.get("markdown", "")
-                title = (markdown.strip().splitlines() or ["Без названия"])[0]
-                title = title.lstrip("# ").strip()[:60] or "Без названия"
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    box["drafts"] = [d for d in box["drafts"] if d["id"] != draft_id]
-                    box["drafts"].insert(0, {
-                        "id": draft_id, "title": title,
-                        "markdown": markdown, "updated": int(time.time()),
-                    })
-                    save_data(store)
+                draft_id = storage.draft_save(uid, data.get("id"),
+                                              data.get("markdown", ""))
                 self._json({"ok": True, "id": draft_id})
             elif self.path == "/api/drafts/delete":
-                draft_id = self._read_json().get("id")
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    box["drafts"] = [d for d in box["drafts"] if d["id"] != draft_id]
-                    save_data(store)
+                storage.draft_delete(uid, self._read_json().get("id", ""))
                 self._json({"ok": True})
             elif self.path == "/api/schedule/add":
                 data = self._read_json()
@@ -478,48 +389,22 @@ class Handler(BaseHTTPRequestHandler):
                 if when <= time.time():
                     self._json({"ok": False, "error": "Время уже прошло."})
                     return
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    box["scheduled"].append({
-                        "id": uuid.uuid4().hex, "markdown": data.get("markdown", ""),
-                        "target": target, "when": when, "status": "pending",
-                    })
-                    box["scheduled"].sort(key=lambda p: p["when"])
-                    save_data(store)
+                storage.sched_add(uid, data.get("markdown", ""), target, when)
                 self._json({"ok": True})
             elif self.path == "/api/schedule/update":
                 data = self._read_json()
                 when = int(data.get("when", 0))
-                target = data.get("target", "").strip()
                 if when <= time.time():
                     self._json({"ok": False, "error": "Время уже прошло."})
                     return
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    for p in box["scheduled"]:
-                        if p["id"] == data.get("id") and p["status"] in ("pending", "error"):
-                            p.update({
-                                "markdown": data.get("markdown", p["markdown"]),
-                                "target": target or p["target"],
-                                "when": when, "status": "pending",
-                            })
-                            p.pop("error", None)
-                            box["scheduled"].sort(key=lambda x: x["when"])
-                            save_data(store)
-                            self._json({"ok": True})
-                            return
-                self._json({"ok": False, "error": "Пост не найден или уже отправлен."})
+                if storage.sched_update(uid, data.get("id", ""),
+                                        data.get("markdown", ""),
+                                        data.get("target", "").strip(), when):
+                    self._json({"ok": True})
+                else:
+                    self._json({"ok": False, "error": "Пост не найден или уже отправлен."})
             elif self.path == "/api/schedule/cancel":
-                post_id = self._read_json().get("id")
-                with _data_lock:
-                    store = load_data()
-                    box = user_data(store, uid)
-                    box["scheduled"] = [p for p in box["scheduled"]
-                                        if not (p["id"] == post_id
-                                                and p["status"] != "sending")]
-                    save_data(store)
+                storage.sched_cancel(uid, self._read_json().get("id", ""))
                 self._json({"ok": True})
             else:
                 self._json({"ok": False, "error": "unknown endpoint"}, 404)
@@ -554,12 +439,13 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if not BOT_TOKEN:
         sys.exit("Задайте BOT_TOKEN в .env или переменной окружения.")
+    storage.init_db()
     ok, me = api_call("getMe")
     if not ok:
         sys.exit(f"Токен не принят Telegram: {me}")
     global BOT_USERNAME
     BOT_USERNAME = me.get("username", "")
-    log.info("Редактор для бота @%s", BOT_USERNAME)
+    log.info("Редактор для бота @%s (данные: %s)", BOT_USERNAME, storage.DB_FILE)
     if s3.configured:
         log.info("Картинки: S3 %s/%s", s3.endpoint, s3.bucket)
     else:
