@@ -78,6 +78,8 @@
   aside nav button.active { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--accent); }
   aside nav button.active .cnt { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
   aside .foot { margin-top: auto; padding: 10px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  aside .foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  aside .foot a:hover { text-decoration: underline; }
 
   #content { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .view { flex: 1; display: none; flex-direction: column; overflow: hidden; }
@@ -115,13 +117,29 @@
 
   .editor-foot {
     flex: 0 0 auto; border-top: 1px solid var(--line-soft); padding: 12px 20px;
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    display: flex; gap: 8px; align-items: center;
   }
+  .editor-foot > .btn { flex: 1; }
   select#target {
-    padding: 9px 32px 9px 12px; border: 1px solid var(--line); border-radius: 8px;
-    background: var(--surface) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
-    appearance: none; min-width: 160px; flex: 1;
+    width: 100%; padding: 11px 32px 11px 12px; border: 1px solid var(--line);
+    border-radius: 8px; margin-bottom: 12px;
+    background: var(--bg) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
+    appearance: none;
   }
+  .pub-wrap { position: relative; flex: 1; display: flex; }
+  .pub-wrap .btn { flex: 1; }
+  .pub-wrap .caret { font-size: 10px; opacity: .8; }
+  .pub-menu {
+    position: absolute; bottom: calc(100% + 8px); right: 0; min-width: 100%;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.18); overflow: hidden; z-index: 8;
+  }
+  .pub-menu button {
+    display: block; width: 100%; text-align: left; padding: 11px 16px;
+    font-size: 13.5px; font-weight: 500;
+  }
+  .pub-menu button:hover { background: var(--bg); }
+  .pub-menu button + button { border-top: 1px solid var(--line-soft); }
   .btn {
     padding: 9px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
@@ -282,6 +300,23 @@
   .badge.pending { background: color-mix(in srgb, var(--pending) 14%, transparent); color: var(--pending); }
   .badge.sent { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
   .badge.error { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+  .badge.published {
+    background: transparent; border: 1px solid var(--ok); color: var(--ok);
+    font-weight: 600;
+  }
+  .countdown {
+    font: 13px/1 ui-monospace, "SF Mono", Menlo, monospace; font-weight: 600;
+    color: var(--pending); flex: 0 0 auto; letter-spacing: .04em;
+  }
+  .card .edit {
+    color: var(--accent); font-size: 12.5px; font-weight: 600; padding: 7px 9px;
+    border-radius: 7px; flex: 0 0 auto;
+  }
+  .card .edit:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .card.sched .body { cursor: pointer; }
+  .sched-preview { margin: -2px 0 10px; padding: 10px 12px; background: var(--chat-bg);
+    border-radius: 10px; }
+  .show-more { width: 100%; margin-top: 4px; }
   .section-h { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: 22px 2px 10px; }
   .empty-state { text-align: center; color: var(--muted); padding: 56px 24px; font-size: 13.5px; line-height: 1.6; }
   .add-row { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -397,7 +432,7 @@
     #previewClose { display: inline-flex; }
     #previewFab {
       display: grid; place-items: center; position: fixed; right: 14px;
-      bottom: calc(196px + env(safe-area-inset-bottom)); z-index: 5;
+      bottom: calc(148px + env(safe-area-inset-bottom)); z-index: 5;
       width: 50px; height: 50px; border-radius: 50%;
       background: var(--accent); color: var(--accent-ink);
       box-shadow: 0 6px 20px rgba(0,0,0,.28);
@@ -413,9 +448,8 @@
     .toolbar .group { flex: 0 0 auto; }
     .toolbar .group button { padding: 9px 12px; font-size: 14px; }
 
-    /* Нижняя панель: селект отдельной строкой, кнопки равными долями */
+    /* Нижняя панель: кнопки равными долями */
     .editor-foot { padding: 10px 14px; }
-    select#target { flex-basis: 100%; }
     .editor-foot .btn { flex: 1; padding: 12px 8px; font-size: 13px; }
     #md { padding: 6px 14px 14px; font-size: 15px; }
 
@@ -496,10 +530,14 @@
         </div>
         <textarea id="md" placeholder="# Заголовок поста&#10;&#10;Начните писать — предпросмотр обновляется сам…" autocapitalize="sentences" spellcheck="true"></textarea>
         <div class="editor-foot">
-          <select id="target"><option value="">Куда публиковать…</option></select>
-          <button class="btn ghost" id="saveDraftBtn">Сохранить черновик</button>
-          <button class="btn ghost" id="scheduleBtn">Отложить</button>
-          <button class="btn primary" id="publishBtn">Опубликовать</button>
+          <button class="btn ghost" id="saveDraftBtn">В черновики</button>
+          <div class="pub-wrap">
+            <button class="btn primary" id="publishBtn">Опубликовать <span class="caret">▾</span></button>
+            <div class="pub-menu" id="pubMenu" hidden>
+              <button data-mode="now">Сразу</button>
+              <button data-mode="later">По времени</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="pane preview-pane">
@@ -543,11 +581,12 @@
 
 <div id="sheet">
   <div class="panel">
-    <h3>Отложить публикацию</h3>
+    <h3 id="sheetTitle">Публикация</h3>
+    <select id="target"><option value="">Выберите канал…</option></select>
     <input type="datetime-local" id="scheduleTime">
     <div class="row">
       <button class="btn ghost" id="sheetCancel">Отмена</button>
-      <button class="btn primary" id="sheetOk">Запланировать</button>
+      <button class="btn primary" id="sheetOk">Опубликовать</button>
     </div>
   </div>
 </div>
@@ -706,7 +745,7 @@ $('previewClose').addEventListener('click', () =>
 md.value = localStorage.getItem('draft') || '';
 md.addEventListener('input', () => {
   localStorage.setItem('draft', md.value);
-  $('draftState').textContent = '';
+  if (!editingSched) $('draftState').textContent = '';
   clearTimeout(previewTimer);
   previewTimer = setTimeout(renderPreview, 250);
 });
@@ -780,9 +819,8 @@ function inline(text) {
   h = h.replace(/\[\^([\w-]+)\]/g, '<sup><a onclick="return false">$1</a></sup>');
   return h;
 }
-function renderPreview() {
+function buildContentHtml(src) {
   mathStore.length = 0;
-  const src = md.value;
   const out = [];
   const lines = src.split('\n');
   let i = 0, listBuf = [], listTag = '';
@@ -889,15 +927,13 @@ function renderPreview() {
     i++;
   }
   flushList();
+  return out.join('');
+}
 
-  let html = out.length ? out.join('') : '<div class="empty">Пост пустой — начните писать слева</div>';
-  const time = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
-  $('chat').innerHTML = `<div class="msg"><div class="bubble"><div class="content">${html}</div>` +
-    `<span class="meta"><svg width="15" height="10" viewBox="0 0 22 14" fill="currentColor"><path d="M11 0C6 0 1.7 2.9 0 7c1.7 4.1 6 7 11 7s9.3-2.9 11-7c-1.7-4.1-6-7-11-7zm0 11.7a4.7 4.7 0 110-9.4 4.7 4.7 0 010 9.4zM11 4a3 3 0 100 6 3 3 0 000-6z"/></svg> 2.4K &nbsp;${time}</span></div></div>`;
-
+function applyMath(root) {
   // KaTeX по плейсхолдерам
   if (mathStore.length) {
-    const walker = document.createTreeWalker($('chat'), NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const targets = [];
     while (walker.nextNode()) {
       if (walker.currentNode.nodeValue.includes('')) targets.push(walker.currentNode);
@@ -921,6 +957,15 @@ function renderPreview() {
       node.parentNode.replaceChild(frag, node);
     });
   }
+}
+
+function renderPreview() {
+  const html = buildContentHtml(md.value) ||
+    '<div class="empty">Пост пустой — начните писать слева</div>';
+  const time = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+  $('chat').innerHTML = `<div class="msg"><div class="bubble"><div class="content">${html}</div>` +
+    `<span class="meta"><svg width="15" height="10" viewBox="0 0 22 14" fill="currentColor"><path d="M11 0C6 0 1.7 2.9 0 7c1.7 4.1 6 7 11 7s9.3-2.9 11-7c-1.7-4.1-6-7-11-7zm0 11.7a4.7 4.7 0 110-9.4 4.7 4.7 0 010 9.4zM11 4a3 3 0 100 6 3 3 0 000-6z"/></svg> 2.4K &nbsp;${time}</span></div></div>`;
+  applyMath($('chat'));
 }
 
 /* ── Данные ── */
@@ -1011,61 +1056,176 @@ $('saveDraftBtn').addEventListener('click', async () => {
 });
 
 /* ── Отложенные ── */
+let publishedShown = 10;
+
+function countdownText(when) {
+  const left = Math.max(0, when - Math.floor(Date.now() / 1000));
+  const h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60), s = left % 60;
+  return [h, m, s].map(x => String(x).padStart(2, '0')).join(':');
+}
+
 function renderScheduled() {
   const el = $('scheduledList');
-  const badges = {pending: 'ожидает', sending: 'отправка…', sent: 'опубликован', error: 'ошибка'};
+  const badges = {pending: 'ожидает', sending: 'отправка…', error: 'ошибка'};
   let html = '';
   if (!state.scheduled.length && !state.published.length) {
     el.innerHTML = `<div class="empty-state">Отложенных постов нет.<br>
-      В редакторе нажмите «Отложить» и выберите время — сервер опубликует пост сам
+      В редакторе нажмите «Опубликовать» → «По времени» — сервер опубликует пост сам
       (компьютер с сервером должен работать в этот момент).</div>`;
     return;
   }
   if (state.scheduled.length) {
     html += state.scheduled.map(p => `
-      <div class="card">
+      <div class="card sched" data-id="${p.id}">
         <div class="body">
           <div class="title">${esc(p.markdown.split('\n')[0].replace(/^#+\s*/, '').slice(0, 60) || '(пусто)')}</div>
           <div class="meta">${esc(p.target)} · ${fmtDate(p.when)}${p.error ? ' · ' + esc(p.error) : ''}</div>
         </div>
-        <span class="badge ${p.status === 'sending' ? 'pending' : p.status}">${badges[p.status]}</span>
-        ${p.status === 'pending' ? `<button class="del" data-cancel="${p.id}">Отменить</button>` : ''}
-      </div>`).join('');
+        ${p.status === 'pending'
+          ? `<span class="countdown" data-when="${p.when}">${countdownText(p.when)}</span>`
+          : `<span class="badge ${p.status === 'sending' ? 'pending' : p.status}">${badges[p.status]}</span>`}
+        ${p.status !== 'sending' ? `<button class="edit" data-edit="${p.id}">Изменить</button>
+        <button class="del" data-cancel="${p.id}">Отменить</button>` : ''}
+      </div>
+      <div class="sched-preview" data-preview="${p.id}" hidden></div>`).join('');
   }
   if (state.published.length) {
-    html += '<div class="section-h">Опубликовано</div>' + state.published.map(p => `
+    html += '<div class="section-h">Опубликовано</div>' +
+      state.published.slice(0, publishedShown).map(p => `
       <div class="card">
         <div class="body">
           <div class="title">${esc(p.title)}</div>
-          <div class="meta">${esc(p.target)} · ${fmtDate(p.when)}</div>
+          <div class="meta">${esc(p.target)}</div>
         </div>
+        <span class="badge published">${fmtDate(p.when)}</span>
       </div>`).join('');
+    if (state.published.length > publishedShown)
+      html += `<button class="btn ghost show-more" id="showMorePublished">
+        Показать ещё (${state.published.length - publishedShown})</button>`;
   }
   el.innerHTML = html;
-  el.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', async () => {
+
+  el.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!confirm('Отменить отложенный пост?')) return;
     await api('/api/schedule/cancel', {id: b.dataset.cancel});
     refresh();
   }));
+  el.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const post = state.scheduled.find(p => p.id === b.dataset.edit);
+    if (post) startEditingSched(post);
+  }));
+  // тап по карточке — инлайн-предпросмотр поста
+  el.querySelectorAll('.card.sched .body').forEach(body => body.addEventListener('click', () => {
+    const id = body.closest('.card').dataset.id;
+    const box = el.querySelector(`[data-preview="${id}"]`);
+    if (!box.hidden) { box.hidden = true; return; }
+    if (!box.innerHTML) {
+      const post = state.scheduled.find(p => p.id === id);
+      box.innerHTML = '<div class="bubble"><div class="content">' +
+        (buildContentHtml(post.markdown) || '<div class="empty">Пост пустой</div>') +
+        '</div></div>';
+      applyMath(box);
+    }
+    box.hidden = false;
+  }));
+  const more = $('showMorePublished');
+  if (more) more.addEventListener('click', () => { publishedShown += 10; renderScheduled(); });
 }
-$('scheduleBtn').addEventListener('click', () => {
+
+/* Секундный отсчёт; после нуля подтягиваем статус с сервера */
+let overdueRefresh = 0;
+setInterval(() => {
+  let anyOverdue = false;
+  document.querySelectorAll('.countdown[data-when]').forEach(elm => {
+    const when = +elm.dataset.when;
+    elm.textContent = countdownText(when);
+    if (when <= Date.now() / 1000) anyOverdue = true;
+  });
+  if (anyOverdue && Date.now() - overdueRefresh > 5000 &&
+      document.querySelector('#view-scheduled.active')) {
+    overdueRefresh = Date.now();
+    refresh();
+  }
+}, 1000);
+/* ── Публикация: меню «Сразу / По времени» + диалог с выбором канала ── */
+let sheetMode = 'now';          // now | later | edit
+let editingSched = null;        // отложенный пост, загруженный на правку
+
+$('publishBtn').addEventListener('click', () => {
   if (!md.value.trim()) { toast('Пост пустой', true); return; }
-  if (!$('target').value) { toast('Выберите канал', true); return; }
-  const d = new Date(Date.now() + 3600 * 1000);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  $('scheduleTime').value = d.toISOString().slice(0, 16);
-  $('sheet').classList.add('open');
+  if (editingSched) { openSheet('edit'); return; }
+  $('pubMenu').hidden = !$('pubMenu').hidden;
 });
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pub-wrap')) $('pubMenu').hidden = true;
+});
+$('pubMenu').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  $('pubMenu').hidden = true;
+  openSheet(b.dataset.mode);
+}));
+
+function openSheet(mode) {
+  sheetMode = mode;
+  const conf = {
+    now:   {title: 'Опубликовать сейчас', ok: 'Опубликовать', time: false},
+    later: {title: 'Отложенная публикация', ok: 'Запланировать', time: true},
+    edit:  {title: 'Изменить отложенный пост', ok: 'Сохранить', time: true},
+  }[mode];
+  $('sheetTitle').textContent = conf.title;
+  $('sheetOk').textContent = conf.ok;
+  $('scheduleTime').style.display = conf.time ? '' : 'none';
+  $('target').value = (mode === 'edit' && editingSched)
+    ? editingSched.target : (localStorage.getItem('target') || '');
+  const base = (mode === 'edit' && editingSched)
+    ? new Date(editingSched.when * 1000) : new Date(Date.now() + 3600 * 1000);
+  base.setMinutes(base.getMinutes() - base.getTimezoneOffset());
+  $('scheduleTime').value = base.toISOString().slice(0, 16);
+  $('sheet').classList.add('open');
+}
 $('sheetCancel').addEventListener('click', () => $('sheet').classList.remove('open'));
 $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) $('sheet').classList.remove('open'); });
-$('sheetOk').addEventListener('click', async () => {
-  const when = Math.floor(new Date($('scheduleTime').value).getTime() / 1000);
-  if (!when || isNaN(when)) { toast('Укажите время', true); return; }
-  const resp = await api('/api/schedule/add',
-    {markdown: md.value, target: $('target').value, when});
+$('sheetOk').addEventListener('click', async function () {
+  const target = $('target').value;
+  if (!target) { toast('Выберите канал', true); return; }
+  this.disabled = true;
+  let resp;
+  if (sheetMode === 'now') {
+    resp = await api('/api/publish', {markdown: md.value, target});
+  } else {
+    const when = Math.floor(new Date($('scheduleTime').value).getTime() / 1000);
+    if (!when || isNaN(when)) { toast('Укажите время', true); this.disabled = false; return; }
+    resp = sheetMode === 'edit'
+      ? await api('/api/schedule/update',
+          {id: editingSched.id, markdown: md.value, target, when})
+      : await api('/api/schedule/add', {markdown: md.value, target, when});
+  }
+  this.disabled = false;
   $('sheet').classList.remove('open');
-  if (resp.ok) { toast('Запланировано на ' + fmtDate(when)); refresh(); }
-  else toast(resp.error, true);
+  if (!resp.ok) { toast(resp.error, true); return; }
+  if (sheetMode === 'now') toast('Опубликовано в ' + target);
+  else toast((sheetMode === 'edit' ? 'Изменения сохранены — ' : 'Запланировано — ') +
+             fmtDate(Math.floor(new Date($('scheduleTime').value).getTime() / 1000)));
+  if (sheetMode !== 'now') stopEditingSched();
+  refresh();
 });
+
+function startEditingSched(post) {
+  editingSched = post;
+  md.value = post.markdown;
+  localStorage.setItem('draft', post.markdown);
+  $('publishBtn').innerHTML = 'Сохранить изменения';
+  $('draftState').innerHTML = 'правка отложенного · <a href="#" id="cancelEdit">отменить</a>';
+  $('cancelEdit').addEventListener('click', e => { e.preventDefault(); stopEditingSched(); });
+  document.querySelector('#mainNav button[data-view=editor]').click();
+  renderPreview();
+}
+function stopEditingSched() {
+  editingSched = null;
+  $('publishBtn').innerHTML = 'Опубликовать <span class="caret">▾</span>';
+  $('draftState').textContent = '';
+}
 
 /* ── Каналы ── */
 function renderChannels() {
@@ -1099,19 +1259,7 @@ $('addChannelBtn').addEventListener('click', async () => {
   else toast(resp.error, true);
 });
 
-/* ── Публикация и превью в TG ── */
-$('publishBtn').addEventListener('click', async function () {
-  if (!md.value.trim()) { toast('Пост пустой', true); return; }
-  const target = $('target').value;
-  if (!target) { toast('Выберите канал', true); return; }
-  if (!confirm('Опубликовать пост в ' + target + '?')) return;
-  this.disabled = true;
-  toast('Публикация…');
-  const resp = await api('/api/publish', {markdown: md.value, target});
-  this.disabled = false;
-  if (resp.ok) { toast('Опубликовано в ' + target); refresh(); }
-  else toast(resp.error, true);
-});
+/* ── Превью в TG ── */
 $('tgPreviewBtn').addEventListener('click', async function () {
   if (!md.value.trim()) { toast('Пост пустой', true); return; }
   this.disabled = true;

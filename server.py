@@ -93,7 +93,7 @@ def log_published(box: dict, target: str, markdown: str):
         "title": title.lstrip("# ").strip(),
         "when": int(time.time()),
     })
-    del box["published"][50:]
+    del box["published"][200:]
 
 
 def verify_channel_admin(username: str, user_id) -> tuple[bool, str | dict]:
@@ -256,13 +256,16 @@ def scheduler_loop():
                 with _data_lock:
                     data = load_data()
                     box = user_data(data, uid)
-                    for p in box["scheduled"]:
-                        if p["id"] == post["id"]:
-                            p["status"] = "sent" if ok else "error"
-                            if not ok:
+                    if ok:
+                        # успешные уходят из очереди в журнал публикаций
+                        box["scheduled"] = [p for p in box["scheduled"]
+                                            if p["id"] != post["id"]]
+                        log_published(box, post["target"], post["markdown"])
+                    else:
+                        for p in box["scheduled"]:
+                            if p["id"] == post["id"]:
+                                p["status"] = "error"
                                 p["error"] = result
-                            else:
-                                log_published(box, post["target"], post["markdown"])
                     save_data(data)
                 log.info("Отложенный пост %s → %s: %s",
                          post["id"], post["target"], "ok" if ok else result)
@@ -453,6 +456,29 @@ class Handler(BaseHTTPRequestHandler):
                     box["scheduled"].sort(key=lambda p: p["when"])
                     save_data(store)
                 self._json({"ok": True})
+            elif self.path == "/api/schedule/update":
+                data = self._read_json()
+                when = int(data.get("when", 0))
+                target = data.get("target", "").strip()
+                if when <= time.time():
+                    self._json({"ok": False, "error": "Время уже прошло."})
+                    return
+                with _data_lock:
+                    store = load_data()
+                    box = user_data(store, uid)
+                    for p in box["scheduled"]:
+                        if p["id"] == data.get("id") and p["status"] in ("pending", "error"):
+                            p.update({
+                                "markdown": data.get("markdown", p["markdown"]),
+                                "target": target or p["target"],
+                                "when": when, "status": "pending",
+                            })
+                            p.pop("error", None)
+                            box["scheduled"].sort(key=lambda x: x["when"])
+                            save_data(store)
+                            self._json({"ok": True})
+                            return
+                self._json({"ok": False, "error": "Пост не найден или уже отправлен."})
             elif self.path == "/api/schedule/cancel":
                 post_id = self._read_json().get("id")
                 with _data_lock:
