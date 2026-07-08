@@ -332,8 +332,17 @@
     outline: none; margin-bottom: 12px;
   }
   #login input:focus { border-color: var(--accent); }
-  #login .btn { width: 100%; }
+  #login .btn { width: 100%; text-decoration: none; }
   #login .err { color: var(--danger); margin: 10px 0 0; min-height: 18px; }
+  #login .wait { color: var(--ok); margin: 12px 0 0; }
+  #login .alt { margin-top: 18px; text-align: left; }
+  #login .alt summary {
+    font-size: 12.5px; color: var(--muted); cursor: pointer; text-align: center;
+    list-style: none;
+  }
+  #login .alt summary:hover { color: var(--accent); }
+  #login .alt p { margin: 12px 0 10px; }
+  #login .alt .btn { margin-top: 2px; }
 
   #toast {
     position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(16px);
@@ -547,11 +556,19 @@
   <div class="panel">
     <div class="logo-big">Md</div>
     <h3>Вход в студию постов</h3>
-    <p>Откройте чат с ботом в Telegram, отправьте команду <code>/login</code>
-    и введите полученный код:</p>
-    <input id="loginCode" inputmode="numeric" autocomplete="one-time-code"
-           maxlength="6" placeholder="······">
-    <button class="btn primary" id="loginBtn">Войти</button>
+    <p>Нажмите кнопку — откроется чат с ботом, вход подтвердится автоматически.</p>
+    <a class="btn primary" id="tgLoginBtn" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.9 3.4c.2-1.2-1-2.2-2.1-1.7L1.4 10.2c-1.2.5-1.1 2.3.2 2.6l5.5 1.4 2.1 6.6c.4 1.1 1.8 1.4 2.6.5l3-3.3 5.5 4c1 .8 2.5.2 2.7-1.1zM8.8 13.6l9.4-7.7c.3-.2.6.2.4.5l-7.6 8.5-.3 3.4z"/></svg>
+      Войти через Telegram
+    </a>
+    <p class="wait" id="loginWait" hidden>Ждём подтверждения в Telegram…</p>
+    <details class="alt">
+      <summary>Войти по коду</summary>
+      <p>Отправьте боту команду <code>/login</code> и введите код:</p>
+      <input id="loginCode" inputmode="numeric" autocomplete="one-time-code"
+             maxlength="6" placeholder="······">
+      <button class="btn ghost" id="loginBtn">Войти</button>
+    </details>
     <p class="err" id="loginError"></p>
   </div>
 </div>
@@ -588,8 +605,43 @@ async function api(url, body) {
   } catch (e) { return {ok: false, error: 'Сервер недоступен'}; }
 }
 
-/* ── Вход по коду из бота ── */
-function showLogin() { $('login').classList.add('open'); $('loginCode').focus(); }
+/* ── Вход: deep-link на бота + фоновый опрос, код — запасной путь ── */
+let loginPollTimer = null;
+let loginToken = null;
+
+function showLogin() {
+  $('login').classList.add('open');
+  prepareTgLogin();
+}
+function finishLogin(token) {
+  clearInterval(loginPollTimer);
+  loginPollTimer = null;
+  localStorage.setItem('session', token);
+  $('login').classList.remove('open');
+  $('loginWait').hidden = true;
+  $('loginError').textContent = '';
+  toast('Вы вошли');
+  refresh();
+}
+async function prepareTgLogin() {
+  loginToken = 'login-' + crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+  const cfg = await api('/api/config');
+  if (cfg.ok && cfg.bot) {
+    $('tgLoginBtn').href = 'https://t.me/' + cfg.bot + '?start=' + loginToken;
+  } else {
+    $('loginError').textContent = 'Сервер недоступен — обновите страницу';
+  }
+}
+$('tgLoginBtn').addEventListener('click', () => {
+  $('loginWait').hidden = false;
+  clearInterval(loginPollTimer);
+  let attempts = 0;
+  loginPollTimer = setInterval(async () => {
+    if (++attempts > 150) { clearInterval(loginPollTimer); return; }
+    const resp = await api('/api/login', {code: loginToken});
+    if (resp.ok) finishLogin(resp.token);
+  }, 2000);
+});
 $('loginBtn').addEventListener('click', doLogin);
 $('loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 async function doLogin() {
@@ -598,16 +650,8 @@ async function doLogin() {
   $('loginBtn').disabled = true;
   const resp = await api('/api/login', {code});
   $('loginBtn').disabled = false;
-  if (resp.ok) {
-    localStorage.setItem('session', resp.token);
-    $('login').classList.remove('open');
-    $('loginCode').value = '';
-    $('loginError').textContent = '';
-    toast('Вы вошли');
-    refresh();
-  } else {
-    $('loginError').textContent = resp.error || 'Не получилось, попробуйте ещё раз';
-  }
+  if (resp.ok) finishLogin(resp.token);
+  else $('loginError').textContent = resp.error || 'Не получилось, попробуйте ещё раз';
 }
 const fmtDate = ts => new Date(ts * 1000).toLocaleString('ru-RU',
   {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});

@@ -134,6 +134,8 @@ def trampoline_upload(filename: str, blob: bytes) -> tuple[bool, str]:
 
 log = logging.getLogger("editor-server")
 
+BOT_USERNAME = ""  # заполняется в main() из getMe
+
 
 def api_call(method: str, files=None, **params):
     if files:
@@ -302,6 +304,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, b"editor.html not found", "text/plain")
                 return
             self._send(200, body, "text/html; charset=utf-8")
+        elif self.path == "/api/config":
+            self._json({"ok": True, "bot": BOT_USERNAME})
         elif self.path == "/api/state":
             session = self._session()
             if not session:
@@ -495,7 +499,9 @@ def main():
     ok, me = api_call("getMe")
     if not ok:
         sys.exit(f"Токен не принят Telegram: {me}")
-    log.info("Редактор для бота @%s", me.get("username"))
+    global BOT_USERNAME
+    BOT_USERNAME = me.get("username", "")
+    log.info("Редактор для бота @%s", BOT_USERNAME)
     if s3.configured:
         log.info("Картинки: S3 %s/%s", s3.endpoint, s3.bucket)
     else:

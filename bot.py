@@ -59,16 +59,14 @@ def remember_owner_chat(chat_id: int):
         json.dump(state, open(STATE_FILE, "w", encoding="utf-8"))
 
 
-def issue_login_code(user: dict) -> str:
-    """Создаёт одноразовый код входа для пользователя, чистит просроченные."""
-    import secrets
+def _save_login_code(code: str, user: dict):
+    """Записывает код/токен входа, который потребит server.py; чистит старые."""
     try:
         codes = json.load(open(LOGIN_CODES_FILE, encoding="utf-8"))
     except (OSError, ValueError):
         codes = {}
     now = int(time.time())
     codes = {c: v for c, v in codes.items() if v.get("expires", 0) > now}
-    code = f"{secrets.randbelow(1000000):06d}"
     codes[code] = {
         "user_id": user["id"],
         "name": user.get("first_name", ""),
@@ -77,7 +75,22 @@ def issue_login_code(user: dict) -> str:
     tmp = LOGIN_CODES_FILE + ".tmp"
     json.dump(codes, open(tmp, "w", encoding="utf-8"))
     os.replace(tmp, LOGIN_CODES_FILE)
+
+
+def issue_login_code(user: dict) -> str:
+    """Одноразовый 6-значный код для ручного входа."""
+    import secrets
+    code = f"{secrets.randbelow(1000000):06d}"
+    _save_login_code(code, user)
     return code
+
+
+def confirm_login_token(token: str, user: dict) -> bool:
+    """Подтверждает вход по deep-link токену из /start <token>."""
+    if not (8 <= len(token) <= 64) or not token.replace("-", "").replace("_", "").isalnum():
+        return False
+    _save_login_code(token, user)
+    return True
 
 log = logging.getLogger("markdown-bot")
 
@@ -170,7 +183,18 @@ def handle_message(message: dict):
     document = message.get("document")
 
     if text:
-        if text.startswith("/start") or text.startswith("/help"):
+        if text.startswith("/start"):
+            payload = text.split(maxsplit=1)[1].strip() if " " in text else ""
+            if payload and payload.startswith("login-") and confirm_login_token(
+                    payload, message.get("from", {})):
+                send_plain(
+                    chat_id,
+                    "✅ Вход подтверждён. Вернитесь на вкладку веб-редактора — "
+                    "вы уже вошли.",
+                )
+            else:
+                send_plain(chat_id, HELP_TEXT)
+        elif text.startswith("/help"):
             send_plain(chat_id, HELP_TEXT)
         elif text.startswith("/login"):
             user = message.get("from", {})
