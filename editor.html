@@ -1153,13 +1153,15 @@ function renderScheduled() {
   if (published.length) {
     html += '<div class="section-h">Опубликовано</div>' +
       published.slice(0, publishedShown).map(p => `
-      <div class="card">
+      <div class="card pub" data-id="${p.id}">
         <div class="body">
           <div class="title">${esc(p.title)}</div>
           <div class="meta">${esc(p.target)}</div>
         </div>
         <span class="badge published">${fmtDate(p.when)}</span>
-      </div>`).join('');
+        ${p.message_id ? `<button class="edit" data-editpub="${p.id}">Изменить</button>` : ''}
+      </div>
+      <div class="sched-preview" data-pubpreview="${p.id}" hidden></div>`).join('');
     if (published.length > publishedShown)
       html += `<button class="btn ghost show-more" id="showMorePublished">
         Показать ещё (${published.length - publishedShown})</button>`;
@@ -1198,6 +1200,25 @@ function renderScheduled() {
     }
     box.hidden = false;
   }));
+  el.querySelectorAll('[data-editpub]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const post = state.published.find(p => p.id === b.dataset.editpub);
+    if (post) startEditingPub(post);
+  }));
+  // тап по опубликованному — тоже инлайн-предпросмотр
+  el.querySelectorAll('.card.pub .body').forEach(body => body.addEventListener('click', () => {
+    const id = body.closest('.card').dataset.id;
+    const post = state.published.find(p => p.id === id);
+    if (!post || !post.markdown) return;
+    const box = el.querySelector(`[data-pubpreview="${id}"]`);
+    if (!box.hidden) { box.hidden = true; return; }
+    if (!box.innerHTML) {
+      box.innerHTML = '<div class="bubble"><div class="content">' +
+        buildContentHtml(post.markdown) + '</div></div>';
+      applyMath(box);
+    }
+    box.hidden = false;
+  }));
   const more = $('showMorePublished');
   if (more) more.addEventListener('click', () => { publishedShown += 10; renderScheduled(); });
 }
@@ -1221,8 +1242,18 @@ setInterval(() => {
 let sheetMode = 'now';          // now | later | edit
 let editingSched = null;        // отложенный пост, загруженный на правку
 
-$('publishBtn').addEventListener('click', () => {
+$('publishBtn').addEventListener('click', async function () {
   if (!md.value.trim()) { toast('Пост пустой', true); return; }
+  if (editingPub) {
+    if (!confirm('Обновить пост в ' + editingPub.target + '?')) return;
+    this.disabled = true;
+    const resp = await api('/api/published/update',
+      {id: editingPub.id, markdown: md.value});
+    this.disabled = false;
+    if (resp.ok) { toast('Пост обновлён в ' + editingPub.target); stopAllEditing(); refresh(); }
+    else toast(resp.error, true);
+    return;
+  }
   if (editingSched) { openSheet('edit'); return; }
   $('pubMenu').hidden = !$('pubMenu').hidden;
 });
@@ -1279,8 +1310,32 @@ $('sheetOk').addEventListener('click', async function () {
   refresh();
 });
 
+let editingPub = null;      // опубликованный пост, загруженный на правку
+
+function startEditingPub(post) {
+  editingPub = post;
+  stopEditingSchedState();
+  md.value = post.markdown;
+  localStorage.setItem('draft', post.markdown);
+  $('publishBtn').innerHTML = 'Сохранить в ' + esc(post.target);
+  $('draftState').innerHTML = 'правка публикации · <a href="#" id="cancelEdit">отменить</a>';
+  $('cancelEdit').addEventListener('click', e => { e.preventDefault(); stopAllEditing(); });
+  document.querySelector('#mainNav button[data-view=editor]').click();
+  renderPreview();
+}
+function stopEditingSchedState() {
+  editingSched = null;
+}
+function stopAllEditing() {
+  editingSched = null;
+  editingPub = null;
+  $('publishBtn').innerHTML = 'Опубликовать <span class="caret">▾</span>';
+  $('draftState').textContent = '';
+}
+
 function startEditingSched(post) {
   editingSched = post;
+  editingPub = null;
   md.value = post.markdown;
   localStorage.setItem('draft', post.markdown);
   $('publishBtn').innerHTML = 'Сохранить изменения';
@@ -1289,11 +1344,7 @@ function startEditingSched(post) {
   document.querySelector('#mainNav button[data-view=editor]').click();
   renderPreview();
 }
-function stopEditingSched() {
-  editingSched = null;
-  $('publishBtn').innerHTML = 'Опубликовать <span class="caret">▾</span>';
-  $('draftState').textContent = '';
-}
+function stopEditingSched() { stopAllEditing(); }
 
 /* ── Каналы ── */
 function renderChannels() {
