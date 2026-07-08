@@ -614,11 +614,9 @@ function showLogin() {
   prepareTgLogin();
 }
 function finishLogin(token) {
-  clearInterval(loginPollTimer);
-  loginPollTimer = null;
+  stopLoginPoll();
   localStorage.setItem('session', token);
   $('login').classList.remove('open');
-  $('loginWait').hidden = true;
   $('loginError').textContent = '';
   toast('Вы вошли');
   refresh();
@@ -640,19 +638,34 @@ async function prepareTgLogin() {
     $('loginError').textContent = 'Сервер недоступен — обновите страницу';
   }
 }
+/* Опрос живёт столько же, сколько токен у бота (10 минут), потом
+   останавливается — для нового входа кнопка генерирует свежий токен */
+const LOGIN_POLL_TTL = 10 * 60 * 1000;
+let loginStarted = 0;
+
+function stopLoginPoll() {
+  clearInterval(loginPollTimer);
+  loginPollTimer = null;
+  loginStarted = 0;
+  $('loginWait').hidden = true;
+}
 async function pollLogin() {
-  if (!loginToken || !$('login').classList.contains('open')) return;
+  if (!loginStarted || !$('login').classList.contains('open')) return;
+  if (Date.now() - loginStarted > LOGIN_POLL_TTL) {
+    stopLoginPoll();
+    $('loginError').textContent = 'Время входа истекло — нажмите кнопку ещё раз.';
+    prepareTgLogin();
+    return;
+  }
   const resp = await api('/api/login', {code: loginToken});
   if (resp.ok) finishLogin(resp.token);
 }
 $('tgLoginBtn').addEventListener('click', () => {
+  $('loginError').textContent = '';
   $('loginWait').hidden = false;
   clearInterval(loginPollTimer);
-  let attempts = 0;
-  loginPollTimer = setInterval(() => {
-    if (++attempts > 300) { clearInterval(loginPollTimer); return; }
-    pollLogin();
-  }, 2000);
+  loginStarted = Date.now();
+  loginPollTimer = setInterval(pollLogin, 2000);
 });
 /* Safari замораживает таймеры в фоне — проверяем сразу при возврате на вкладку */
 document.addEventListener('visibilitychange', () => {
