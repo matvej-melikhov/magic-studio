@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Студия постов</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<style>
+  :root {
+    --bg: #EEF1F4; --surface: #FFFFFF; --ink: #1C242C; --muted: #7A8691;
+    --line: #DDE3E9; --line-soft: #E9EDF1;
+    --accent: #3390EC; --accent-hover: #2A7FD4; --accent-ink: #FFFFFF;
+    --danger: #D9483B; --ok: #3E9E63; --pending: #C08A2D;
+    /* Точные цвета tdesktop (classic light): windowFg, msgInBg, windowBgOver,
+       windowSubTextFg, windowActiveTextFg, inputBorderFg, msgInDateFg */
+    --chat-bg: #E3EAF2;
+    --bubble: #FFFFFF; --bubble-ink: #000000; --bubble-meta: #A0ACB6;
+    --tg-link: #168ACD; --tg-code-bg: #F1F1F1; --tg-quote: #168ACD;
+    --tg-sub: #999999; --tg-border: #E0E0E0;
+    --shadow-card: 0 1px 2px rgba(28,36,44,.06), 0 4px 16px rgba(28,36,44,.04);
+    --shadow-bubble: 0 1px 2px rgba(16,35,47,.12);
+  }
+  :root[data-theme="dark"], :root.dark { color-scheme: dark; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E1621; --surface: #17212B; --ink: #EDF1F4; --muted: #78878F;
+      --line: #101921; --line-soft: #222E3A;
+      --accent: #5EB2F0; --accent-hover: #74BEF4; --accent-ink: #0E1621;
+      --danger: #E56A5E; --ok: #5CB884; --pending: #D8A254;
+      /* tdesktop night: msgInBg #182533, windowFg #F5F5F5, windowBgOver #232E3C,
+         windowSubTextFg #708499, windowActiveTextFg #6AB2F2 */
+      --chat-bg: #0E1621;
+      --bubble: #182533; --bubble-ink: #F5F5F5; --bubble-meta: #6D7F8F;
+      --tg-link: #6AB2F2; --tg-code-bg: #232E3C; --tg-quote: #6AB2F2;
+      --tg-sub: #708499; --tg-border: #3D4C5C;
+      --shadow-card: 0 1px 2px rgba(0,0,0,.3);
+      --shadow-bubble: 0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    height: 100dvh; overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ═══ Каркас: боковая панель + контент ═══ */
+  #app { display: grid; grid-template-columns: 232px 1fr; height: 100dvh; }
+  aside {
+    background: var(--surface); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; padding: 20px 12px 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 20px; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--accent);
+    color: var(--accent-ink); display: grid; place-items: center; font-weight: 800;
+    font-size: 16px; letter-spacing: -.5px; flex: 0 0 auto;
+  }
+  .brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .brand .tag { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  aside nav { display: flex; flex-direction: column; gap: 2px; }
+  aside nav button {
+    display: flex; align-items: center; gap: 11px; padding: 9px 11px;
+    border-radius: 8px; font-size: 13.5px; font-weight: 500; color: var(--muted);
+    text-align: left;
+  }
+  aside nav button svg { flex: 0 0 auto; }
+  aside nav button .cnt {
+    margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted);
+    background: var(--bg); border-radius: 10px; padding: 1px 7px;
+  }
+  aside nav button:hover { background: var(--bg); }
+  aside nav button.active { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--accent); }
+  aside nav button.active .cnt { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+  aside .foot { margin-top: auto; padding: 10px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+  #content { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .view { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+  .view.active { display: flex; }
+
+  /* ═══ Редактор: сплит ═══ */
+  .workspace { flex: 1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); overflow: hidden; }
+  .pane { display: flex; flex-direction: column; overflow: hidden; }
+  .pane-h {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px 10px; font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em;
+  }
+  .pane-h .spacer { flex: 1; }
+  .editor-pane { border-right: 1px solid var(--line); background: var(--surface); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 20px 10px; flex: 0 0 auto; }
+  .toolbar .group {
+    display: flex; border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden;
+  }
+  .toolbar .group button {
+    padding: 6px 10px; font-size: 12.5px; color: var(--muted); font-weight: 600;
+    border-right: 1px solid var(--line-soft); min-width: 34px;
+  }
+  .toolbar .group button:last-child { border-right: none; }
+  .toolbar .group button:hover { background: var(--bg); color: var(--ink); }
+  .toolbar .group button b { font-weight: 800; }
+  .toolbar .group button i { font-family: Georgia, serif; }
+
+  #md {
+    flex: 1; width: 100%; padding: 6px 20px 16px; border: none; outline: none;
+    resize: none; background: transparent; color: var(--ink);
+    font: 14px/1.65 ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+
+  .editor-foot {
+    flex: 0 0 auto; border-top: 1px solid var(--line-soft); padding: 12px 20px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  select#target {
+    padding: 9px 32px 9px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
+    appearance: none; min-width: 160px; flex: 1;
+  }
+  .btn {
+    padding: 9px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: background .12s;
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.ghost { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  .btn.ghost:hover { background: var(--bg); }
+  .btn:disabled { opacity: .45; pointer-events: none; }
+
+  /* ═══ Предпросмотр: чат Telegram ═══ */
+  .tg-btn {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    font-weight: 600; color: var(--accent); padding: 5px 10px; border-radius: 7px;
+    text-transform: none; letter-spacing: 0;
+  }
+  .tg-btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  #chat {
+    flex: 1; overflow-y: auto; background: var(--chat-bg);
+    background-image:
+      radial-gradient(circle at 20% 30%, color-mix(in srgb, var(--accent) 4%, transparent) 0 2px, transparent 2px),
+      radial-gradient(circle at 70% 65%, color-mix(in srgb, var(--accent) 3%, transparent) 0 1.5px, transparent 1.5px);
+    background-size: 90px 90px, 60px 60px;
+    padding: 20px 16px 28px;
+  }
+  .msg { max-width: 460px; margin: 0 auto; }
+  /* Значения из tdesktop iv.style (messageMarkdown*, масштаб 100%):
+     тело 13/20, H1 19/27 … H6 14/21, отступы блоков 8–10px, цитата: полоса
+     windowActiveTextFg + фон с opacity .12, отступ 18px; таблица: ячейка
+     8×10, граница 1px inputBorderFg; details: радиус 6, шапка windowBgOver;
+     формула-блок: по центру, паддинг 10/12; список: отступ 28px */
+  .bubble {
+    position: relative; background: var(--bubble); border-radius: 12px;
+    padding: 8px 12px 8px; box-shadow: var(--shadow-bubble);
+    font-size: 14px; line-height: 19px; overflow-wrap: break-word; color: var(--bubble-ink);
+  }
+  .bubble .meta {
+    float: right; margin: 8px -4px -2px 10px; font-size: 12px; color: var(--bubble-meta);
+    display: inline-flex; align-items: center; gap: 4px; user-select: none;
+  }
+  .bubble .meta svg { opacity: .8; }
+  .bubble > .content > :first-child { margin-top: 2px; }
+  .bubble p { margin: 0 0 10px; }
+  /* Заголовки как в iOS-клиенте: антиква New York, обычный вес */
+  .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 {
+    margin: 0 0 12px; font-weight: 400;
+    font-family: "New York", "Times New Roman", Georgia, serif;
+  }
+  .bubble h1 { font-size: 21px; line-height: 27px; }
+  .bubble h2 { font-size: 19.5px; line-height: 25px; }
+  .bubble h3 { font-size: 18px; line-height: 24px; }
+  .bubble h4 { font-size: 17px; line-height: 23px; }
+  .bubble h5 { font-size: 16px; line-height: 22px; }
+  .bubble h6 { font-size: 15px; line-height: 20px; }
+  .bubble blockquote {
+    margin: 4px 0 12px; padding: 6px 12px; position: relative;
+    background: color-mix(in srgb, var(--tg-quote) 10%, transparent);
+    border-radius: 6px; overflow: hidden;
+  }
+  .bubble blockquote::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--tg-quote);
+  }
+  .bubble blockquote .cite { font-weight: 600; }
+  .bubble aside {
+    margin: 0 0 8px; padding: 18px 0; text-align: center; max-width: 420px;
+    margin-left: auto; margin-right: auto; font-style: italic; color: var(--tg-sub);
+  }
+  .bubble ul, .bubble ol { margin: 0 0 8px; padding-left: 28px; }
+  .bubble li { margin: 0 0 6px; }
+  /* Чекбоксы как в iOS: крупные скруглённые, синяя заливка у отмеченных */
+  .bubble li.task { list-style: none; margin-left: -24px; display: flex; align-items: center; gap: 12px; }
+  .bubble li.task input {
+    appearance: none; -webkit-appearance: none; width: 22px; height: 22px;
+    border: 2px solid var(--tg-link); border-radius: 7px; margin: 0;
+    flex: 0 0 auto; position: relative; background: transparent;
+  }
+  .bubble li.task input:checked { background: var(--tg-link); border-color: var(--tg-link); }
+  .bubble li.task input:checked::after {
+    content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
+    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .bubble code {
+    font: 13px/20px ui-monospace, "SF Mono", Menlo, monospace;
+    background: var(--tg-code-bg); border-radius: 4px; padding: 0 4px;
+  }
+  /* Код-блок во всю ширину пузыря, как в iOS */
+  .bubble pre {
+    margin: 2px -12px 10px; padding: 12px; border-radius: 0;
+    background: color-mix(in srgb, var(--tg-code-bg) 80%, transparent);
+    overflow-x: auto;
+  }
+  .bubble pre code { padding: 0; background: none; }
+  .bubble hr { border: none; border-top: 1px solid var(--tg-border); margin: 0 0 8px; }
+  .bubble mark { background: #FDE68A; color: #000; border-radius: 2px; padding: 0 1px; }
+  .bubble .spoiler {
+    border-radius: 4px; cursor: pointer;
+    background: repeating-linear-gradient(-45deg, var(--tg-sub) 0 3px, color-mix(in srgb, var(--tg-sub) 70%, transparent) 3px 6px);
+    color: transparent; transition: all .15s;
+  }
+  .bubble .spoiler.open { background: var(--tg-code-bg); color: inherit; }
+  .bubble .katex { font-size: 1.05em; }
+  .bubble .math-block {
+    display: block; text-align: left; margin: 4px 0 14px; padding: 4px 0;
+    overflow-x: auto; font-size: 15px;
+  }
+  .bubble .math-block .katex-display { text-align: left; margin: 0; }
+  .bubble .math-block .katex-display > .katex { text-align: left; }
+  .bubble img { max-width: calc(100% + 24px); margin: 0 -12px; display: block; }
+  .bubble figure { margin: 0 0 8px; }
+  .bubble figure:first-child img { border-radius: 12px 12px 0 0; margin-top: -7px; }
+  .bubble figcaption { font-size: 13px; color: var(--tg-sub); text-align: left; margin: 8px 0 2px; }
+  .bubble table {
+    border-collapse: separate; border-spacing: 0; margin: 4px 0 12px;
+    font-size: 14px; line-height: 19px; width: 100%;
+    border: 1px solid var(--tg-border); border-radius: 8px; overflow: hidden;
+    table-layout: fixed;
+  }
+  .bubble th, .bubble td {
+    border-right: 1px solid var(--tg-border); border-bottom: 1px solid var(--tg-border);
+    padding: 12px 10px; text-align: left; overflow-wrap: break-word;
+  }
+  .bubble tr > :last-child { border-right: none; }
+  .bubble tr:last-child > td { border-bottom: none; }
+  .bubble th { background: var(--tg-code-bg); font-weight: 400; }
+  .bubble details {
+    margin: 0 0 8px; border: 1px solid var(--tg-border); border-radius: 6px; overflow: hidden;
+  }
+  .bubble summary {
+    font-weight: 400; cursor: pointer; background: var(--tg-code-bg); padding: 12px 8px;
+  }
+  .bubble details > p { padding: 12px 10px 4px; margin: 0 0 8px; }
+  .bubble footer {
+    margin-top: 8px; font-size: 12px; line-height: 18px; color: var(--tg-sub);
+  }
+  .bubble a { color: var(--tg-link); text-decoration: none; }
+  .bubble a:hover { text-decoration: underline; }
+  .bubble sup a { font-size: 11px; }
+  .bubble .empty { color: var(--tg-sub); text-align: center; padding: 26px 8px; font-size: 13px; }
+
+  /* ═══ Списки ═══ */
+  .page { flex: 1; overflow-y: auto; padding: 22px 26px; max-width: 760px; }
+  .page h2 { font-size: 19px; letter-spacing: -.01em; margin-bottom: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 16px; margin-bottom: 8px; box-shadow: var(--shadow-card);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .card .body { flex: 1; min-width: 0; }
+  .card .title { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .card .del { color: var(--danger); font-size: 12.5px; font-weight: 600; padding: 7px 9px; border-radius: 7px; flex: 0 0 auto; }
+  .card .del:hover { background: color-mix(in srgb, var(--danger) 9%, transparent); }
+  .card.link { cursor: pointer; }
+  .card.link:hover { border-color: var(--accent); }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; flex: 0 0 auto; }
+  .badge.pending { background: color-mix(in srgb, var(--pending) 14%, transparent); color: var(--pending); }
+  .badge.sent { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+  .badge.error { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+  .section-h { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: 22px 2px 10px; }
+  .empty-state { text-align: center; color: var(--muted); padding: 56px 24px; font-size: 13.5px; line-height: 1.6; }
+  .add-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .add-row input {
+    flex: 1; padding: 10px 13px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface); outline: none;
+  }
+  .add-row input:focus { border-color: var(--accent); }
+  .hint { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: 16px; }
+
+  /* ═══ Шторка и тосты ═══ */
+  #sheet { position: fixed; inset: 0; background: rgba(10,16,22,.5); display: none; place-items: center; z-index: 10; }
+  #sheet.open { display: grid; }
+  #sheet .panel {
+    background: var(--surface); width: min(380px, calc(100vw - 32px));
+    border-radius: 14px; padding: 22px; box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  }
+  #sheet h3 { font-size: 16px; margin-bottom: 14px; }
+  #sheet input[type=datetime-local] {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); margin-bottom: 14px;
+  }
+  #sheet .row { display: flex; gap: 8px; }
+  #sheet .row .btn { flex: 1; }
+
+  /* ═══ Экран входа ═══ */
+  #login {
+    position: fixed; inset: 0; background: var(--bg); z-index: 30;
+    display: none; place-items: center; padding: 24px;
+  }
+  #login.open { display: grid; }
+  #login .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 28px 26px; width: min(360px, 100%); text-align: center;
+    box-shadow: var(--shadow-card);
+  }
+  #login .logo-big {
+    width: 52px; height: 52px; border-radius: 13px; background: var(--accent);
+    color: var(--accent-ink); display: grid; place-items: center; font-weight: 800;
+    font-size: 24px; margin: 0 auto 14px;
+  }
+  #login h3 { font-size: 17px; margin-bottom: 10px; }
+  #login p { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
+  #login p code { background: var(--bg); padding: 1px 6px; border-radius: 5px; }
+  #login input {
+    width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); text-align: center; font-size: 22px; letter-spacing: 8px;
+    outline: none; margin-bottom: 12px;
+  }
+  #login input:focus { border-color: var(--accent); }
+  #login .btn { width: 100%; }
+  #login .err { color: var(--danger); margin: 10px 0 0; min-height: 18px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(16px);
+    background: #1C242C; color: #fff; padding: 10px 18px; border-radius: 9px;
+    font-size: 13.5px; opacity: 0; transition: all .22s; pointer-events: none;
+    z-index: 20; max-width: 88vw; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.err { background: var(--danger); }
+
+  /* ═══ Кнопка предпросмотра (только мобильные) ═══ */
+  #previewFab { display: none; }
+  #previewClose {
+    display: none; width: 32px; height: 32px; border-radius: 8px;
+    font-size: 15px; color: var(--muted); flex: 0 0 auto;
+    align-items: center; justify-content: center; margin-left: 4px;
+  }
+  #previewClose:active { background: var(--line); }
+  .pane-h { flex-wrap: nowrap; white-space: nowrap; }
+  .tg-btn { white-space: nowrap; }
+
+  /* ═══ Мобильная раскладка ═══ */
+  @media (max-width: 900px) {
+    /* Контент занимает всё, нижняя навигация — только свою высоту */
+    #app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    aside {
+      order: 2; flex-direction: row; align-items: stretch; height: auto;
+      border-right: none; border-top: 1px solid var(--line);
+      padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+    }
+    .brand, aside .foot { display: none; }
+    aside nav { flex-direction: row; flex: 1; gap: 0; }
+    aside nav button {
+      flex: 1; flex-direction: column; justify-content: center; gap: 3px;
+      font-size: 10px; padding: 7px 2px; border-radius: 10px;
+    }
+    aside nav button .cnt { display: none; }
+    #content { order: 1; }
+    .workspace { grid-template-columns: 1fr; }
+    .editor-pane { border-right: none; }
+
+    /* Предпросмотр — полноэкранный оверлей по кнопке-глазу */
+    .preview-pane {
+      display: none; position: fixed; inset: 0; z-index: 6; background: var(--bg);
+    }
+    .workspace.show-preview .preview-pane { display: flex; }
+    .preview-pane .pane-h {
+      padding: calc(12px + env(safe-area-inset-top)) 14px 10px;
+      background: var(--surface); border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+    #previewClose { display: inline-flex; }
+    #previewFab {
+      display: grid; place-items: center; position: fixed; right: 14px;
+      bottom: calc(196px + env(safe-area-inset-bottom)); z-index: 5;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: var(--accent); color: var(--accent-ink);
+      box-shadow: 0 6px 20px rgba(0,0,0,.28);
+    }
+    #previewFab:active { transform: scale(.94); }
+
+    /* Панель инструментов — одна строка с прокруткой */
+    .toolbar {
+      flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; padding: 0 14px 10px;
+    }
+    .toolbar::-webkit-scrollbar { display: none; }
+    .toolbar .group { flex: 0 0 auto; }
+    .toolbar .group button { padding: 9px 12px; font-size: 14px; }
+
+    /* Нижняя панель: селект отдельной строкой, кнопки равными долями */
+    .editor-foot { padding: 10px 14px; }
+    select#target { flex-basis: 100%; }
+    .editor-foot .btn { flex: 1; padding: 12px 8px; font-size: 13px; }
+    #md { padding: 6px 14px 14px; font-size: 15px; }
+
+    .page { padding: 18px 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+<aside>
+  <div class="brand">
+    <div class="logo">Md</div>
+    <div><div class="name">Студия постов</div><div class="tag">rich-формат Telegram</div></div>
+  </div>
+  <nav id="mainNav">
+    <button data-view="editor" class="active">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+      Редактор
+    </button>
+    <button data-view="drafts">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+      Черновики <span class="cnt" id="cntDrafts"></span>
+    </button>
+    <button data-view="scheduled">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Отложенные <span class="cnt" id="cntScheduled"></span>
+    </button>
+    <button data-view="channels">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 11l18-7-7 18-2.5-7.5z"/></svg>
+      Каналы <span class="cnt" id="cntChannels"></span>
+    </button>
+  </nav>
+  <div class="foot" id="sideFoot">Публикация через Bot API 10.1 · sendRichMessage</div>
+</aside>
+
+<div id="content">
+  <!-- ═══ Редактор ═══ -->
+  <section class="view active" id="view-editor">
+    <div class="workspace" id="workspace">
+      <div class="pane editor-pane">
+        <div class="pane-h">Разметка
+          <span class="spacer"></span>
+          <span id="draftState" style="text-transform:none;letter-spacing:0;font-weight:500"></span>
+          <button class="tg-btn" id="newPostBtn" title="Очистить редактор и начать новый пост">+ Новый пост</button>
+        </div>
+        <div class="toolbar">
+          <span class="group">
+            <button data-block="# " title="Заголовок 1">H1</button>
+            <button data-block="## " title="Заголовок 2">H2</button>
+            <button data-block="### " title="Заголовок 3">H3</button>
+          </span>
+          <span class="group">
+            <button data-wrap="**" title="Жирный"><b>B</b></button>
+            <button data-wrap="_" title="Курсив"><i>I</i></button>
+            <button data-wrap="~~" title="Зачёркнутый"><s>S</s></button>
+            <button data-wrap="==" title="Маркер"><mark style="background:#FDE68A;border-radius:2px;padding:0 3px;color:#1C242C">M</mark></button>
+            <button data-wrap="||" title="Спойлер">▒</button>
+            <button data-wrap="`" title="Код">&lt;/&gt;</button>
+          </span>
+          <span class="group">
+            <button data-block="> " title="Цитата">❝</button>
+            <button data-block="- " title="Список">•—</button>
+            <button data-block="- [ ] " title="Чекбокс">☑</button>
+            <button data-snippet="&#10;---&#10;" title="Разделитель">—</button>
+          </span>
+          <span class="group">
+            <button data-wrap="$" title="Формула в строке">ƒ</button>
+            <button data-snippet="&#10;$$&#10;E = mc^2&#10;$$&#10;" title="Формула блоком">∑</button>
+            <button data-snippet="&#10;| Столбец | Столбец |&#10;|:--------|--------:|&#10;| ячейка  | ячейка  |&#10;" title="Таблица">⊞</button>
+            <button data-snippet="&#10;&lt;details&gt;&lt;summary&gt;Заголовок&lt;/summary&gt;&#10;&#10;Скрытый текст&#10;&#10;&lt;/details&gt;&#10;" title="Сворачиваемый блок">▸</button>
+          </span>
+          <span class="group">
+            <button data-snippet="[текст](https://)" title="Ссылка">🔗</button>
+            <button id="imgBtn" title="Загрузить фото">📷</button>
+            <button id="imgUrlBtn" title="Фото по ссылке">🖼</button>
+          </span>
+        </div>
+        <textarea id="md" placeholder="# Заголовок поста&#10;&#10;Начните писать — предпросмотр обновляется сам…" autocapitalize="sentences" spellcheck="true"></textarea>
+        <div class="editor-foot">
+          <select id="target"><option value="">Куда публиковать…</option></select>
+          <button class="btn ghost" id="saveDraftBtn">Сохранить черновик</button>
+          <button class="btn ghost" id="scheduleBtn">Отложить</button>
+          <button class="btn primary" id="publishBtn">Опубликовать</button>
+        </div>
+      </div>
+      <div class="pane preview-pane">
+        <div class="pane-h">Предпросмотр
+          <span class="spacer"></span>
+          <button class="tg-btn" id="tgPreviewBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M23.9 3.4c.2-1.2-1-2.2-2.1-1.7L1.4 10.2c-1.2.5-1.1 2.3.2 2.6l5.5 1.4 2.1 6.6c.4 1.1 1.8 1.4 2.6.5l3-3.3 5.5 4c1 .8 2.5.2 2.7-1.1zM8.8 13.6l9.4-7.7c.3-.2.6.2.4.5l-7.6 8.5-.3 3.4z"/></svg>
+            Превью в TG
+          </button>
+          <button id="previewClose" aria-label="Закрыть предпросмотр">✕</button>
+        </div>
+        <div id="chat"><div class="msg"><div class="bubble"><div class="content"><div class="empty">Пост пустой</div></div></div></div></div>
+      </div>
+    </div>
+    <button id="previewFab" aria-label="Предпросмотр">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+  </section>
+
+  <!-- ═══ Черновики ═══ -->
+  <section class="view" id="view-drafts"><div class="page"><h2>Черновики</h2><div id="draftsList"></div></div></section>
+
+  <!-- ═══ Отложенные ═══ -->
+  <section class="view" id="view-scheduled"><div class="page"><h2>Отложенные</h2><div id="scheduledList"></div></div></section>
+
+  <!-- ═══ Каналы ═══ -->
+  <section class="view" id="view-channels">
+    <div class="page">
+      <h2>Каналы</h2>
+      <div class="add-row">
+        <input id="channelInput" placeholder="@username канала" autocapitalize="off">
+        <button class="btn primary" id="addChannelBtn">Подключить</button>
+      </div>
+      <div id="channelsList"></div>
+      <p class="hint">Добавьте бота администратором канала с правом «Публикация сообщений»,
+      затем укажите здесь @username канала. Приватные каналы без публичной ссылки пока не поддерживаются.</p>
+    </div>
+  </section>
+</div>
+</div>
+
+<div id="sheet">
+  <div class="panel">
+    <h3>Отложить публикацию</h3>
+    <input type="datetime-local" id="scheduleTime">
+    <div class="row">
+      <button class="btn ghost" id="sheetCancel">Отмена</button>
+      <button class="btn primary" id="sheetOk">Запланировать</button>
+    </div>
+  </div>
+</div>
+
+<div id="login">
+  <div class="panel">
+    <div class="logo-big">Md</div>
+    <h3>Вход в студию постов</h3>
+    <p>Откройте чат с ботом в Telegram, отправьте команду <code>/login</code>
+    и введите полученный код:</p>
+    <input id="loginCode" inputmode="numeric" autocomplete="one-time-code"
+           maxlength="6" placeholder="······">
+    <button class="btn primary" id="loginBtn">Войти</button>
+    <p class="err" id="loginError"></p>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="imgInput" accept="image/*" hidden>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const md = $('md');
+let state = { channels: [], drafts: [], scheduled: [], published: [] };
+let currentDraftId = localStorage.getItem('draftId') || null;
+let toastTimer, previewTimer;
+
+function toast(text, isError) {
+  const t = $('toast');
+  t.textContent = text;
+  t.className = 'show' + (isError ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3500);
+}
+async function api(url, body) {
+  const headers = {'X-Session': localStorage.getItem('session') || ''};
+  try {
+    const r = await fetch(url, body === undefined ? {headers} : {
+      method: 'POST',
+      headers: {...headers, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const resp = await r.json();
+    if (r.status === 401) { showLogin(); return {ok: false, error: 'Нужен вход'}; }
+    return resp;
+  } catch (e) { return {ok: false, error: 'Сервер недоступен'}; }
+}
+
+/* ── Вход по коду из бота ── */
+function showLogin() { $('login').classList.add('open'); $('loginCode').focus(); }
+$('loginBtn').addEventListener('click', doLogin);
+$('loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+async function doLogin() {
+  const code = $('loginCode').value.trim();
+  if (code.length < 6) { $('loginError').textContent = 'Введите 6 цифр из чата с ботом'; return; }
+  $('loginBtn').disabled = true;
+  const resp = await api('/api/login', {code});
+  $('loginBtn').disabled = false;
+  if (resp.ok) {
+    localStorage.setItem('session', resp.token);
+    $('login').classList.remove('open');
+    $('loginCode').value = '';
+    $('loginError').textContent = '';
+    toast('Вы вошли');
+    refresh();
+  } else {
+    $('loginError').textContent = resp.error || 'Не получилось, попробуйте ещё раз';
+  }
+}
+const fmtDate = ts => new Date(ts * 1000).toLocaleString('ru-RU',
+  {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ── Навигация ── */
+document.querySelectorAll('#mainNav button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#mainNav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.view').forEach(v =>
+    v.classList.toggle('active', v.id === 'view-' + b.dataset.view));
+  if (b.dataset.view !== 'editor') refresh();
+}));
+/* Мобильный предпросмотр: кнопка-глаз открывает оверлей, ✕ закрывает */
+$('previewFab').addEventListener('click', () => {
+  $('workspace').classList.add('show-preview');
+  renderPreview();
+});
+$('previewClose').addEventListener('click', () =>
+  $('workspace').classList.remove('show-preview'));
+
+/* ── Ввод и вставки ── */
+md.value = localStorage.getItem('draft') || '';
+md.addEventListener('input', () => {
+  localStorage.setItem('draft', md.value);
+  $('draftState').textContent = '';
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(renderPreview, 250);
+});
+function insert(before, after, placeholder) {
+  const s = md.selectionStart, e = md.selectionEnd;
+  const sel = md.value.slice(s, e) || placeholder || '';
+  md.setRangeText(before + sel + after, s, e, 'end');
+  if (!md.value.slice(s, e)) {
+    md.selectionStart = s + before.length;
+    md.selectionEnd = s + before.length + sel.length;
+  }
+  md.focus();
+  localStorage.setItem('draft', md.value);
+  renderPreview();
+}
+document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener('click', () => {
+  if (btn.dataset.wrap) insert(btn.dataset.wrap, btn.dataset.wrap, 'текст');
+  else if (btn.dataset.block) {
+    const pos = md.selectionStart;
+    const lineStart = md.value.lastIndexOf('\n', pos - 1) + 1;
+    md.setRangeText(btn.dataset.block, lineStart, lineStart, 'end');
+    md.focus(); localStorage.setItem('draft', md.value); renderPreview();
+  }
+  else if (btn.dataset.snippet) insert(btn.dataset.snippet, '', '');
+}));
+
+/* ── Картинки ── */
+$('imgBtn').addEventListener('click', () => $('imgInput').click());
+$('imgInput').addEventListener('change', async () => {
+  const file = $('imgInput').files[0];
+  if (!file) return;
+  toast('Загрузка фото…');
+  const data = await new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.readAsDataURL(file);
+  });
+  const resp = await api('/api/upload', {name: file.name, data});
+  if (resp.ok) { insert('\n![](' + resp.url + ' "Подпись")\n', '', ''); toast('Фото добавлено'); }
+  else toast(resp.error, true);
+  $('imgInput').value = '';
+});
+$('imgUrlBtn').addEventListener('click', () => {
+  const url = prompt('Ссылка на картинку (https://…):');
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url.trim())) { toast('Нужна http(s)-ссылка', true); return; }
+  insert('\n![](' + url.trim() + ' "Подпись")\n', '', '');
+});
+
+/* ── Предпросмотр ── */
+/* Плейсхолдеры формул: символы Private Use Area (нулевые байты браузер
+   вырезает из innerHTML, из-за чего формулы превращались в цифры) */
+const mathStore = [];
+function mathInline(tex) { mathStore.push([tex, false]); return `${mathStore.length - 1}`; }
+function mathBlock(tex) { mathStore.push([tex, true]); return `${mathStore.length - 1}`; }
+
+function inline(text) {
+  let h = text.replace(/\$([^$\n]+)\$/g, (_, tex) => mathInline(tex));
+  h = esc(h);
+  h = h.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" onclick="return false">$1</a>');
+  h = h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  h = h.replace(/__([^_]+)__/g, '<b>$1</b>');
+  h = h.replace(/(^|[^\w*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  h = h.replace(/(^|[^\w_])_([^_\n]+)_/g, '$1<i>$2</i>');
+  h = h.replace(/~~([^~]+)~~/g, '<s>$1</s>');
+  h = h.replace(/==([^=]+)==/g, '<mark>$1</mark>');
+  h = h.replace(/\|\|([^|]+)\|\|/g,
+    '<span class="spoiler" onclick="this.classList.toggle(\'open\')">$1</span>');
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/\[\^([\w-]+)\]/g, '<sup><a onclick="return false">$1</a></sup>');
+  return h;
+}
+function renderPreview() {
+  mathStore.length = 0;
+  const src = md.value;
+  const out = [];
+  const lines = src.split('\n');
+  let i = 0, listBuf = [], listTag = '';
+  const flushList = () => {
+    if (listBuf.length) { out.push(`<${listTag}>` + listBuf.join('') + `</${listTag}>`); listBuf = []; }
+  };
+  while (i < lines.length) {
+    const line = lines[i];
+    let m;
+    if (/^\s*$/.test(line)) { flushList(); i++; continue; }
+    if ((m = line.match(/^(#{1,6})\s+(.*)/))) {
+      flushList();
+      const lvl = Math.min(m[1].length, 4);
+      out.push(`<h${lvl}>${inline(m[2])}</h${lvl}>`); i++; continue;
+    }
+    if (/^---+\s*$/.test(line)) { flushList(); out.push('<hr>'); i++; continue; }
+    if (line.startsWith('```')) {
+      flushList();
+      const lang = line.slice(3).trim();
+      const buf = []; i++;
+      while (i < lines.length && !lines[i].startsWith('```')) buf.push(lines[i++]);
+      i++;
+      if (lang === 'math') out.push('<span class="math-block">' + mathBlock(buf.join(' ')) + '</span>');
+      else out.push('<pre><code>' + esc(buf.join('\n')) + '</code></pre>');
+      continue;
+    }
+    if (line.startsWith('$$')) {
+      flushList();
+      let rest = line.slice(2);
+      if (rest.includes('$$')) {
+        out.push('<span class="math-block">' + mathBlock(rest.slice(0, rest.indexOf('$$'))) + '</span>');
+        i++; continue;
+      }
+      const buf = [rest]; i++;
+      while (i < lines.length && !lines[i].includes('$$')) buf.push(lines[i++]);
+      if (i < lines.length) { buf.push(lines[i].slice(0, lines[i].indexOf('$$'))); i++; }
+      out.push('<span class="math-block">' + mathBlock(buf.join(' ').trim()) + '</span>');
+      continue;
+    }
+    if (line.startsWith('>')) {
+      flushList();
+      const buf = [];
+      while (i < lines.length && lines[i].startsWith('>'))
+        buf.push(inline(lines[i++].replace(/^>\s?/, '')));
+      out.push('<blockquote>' + buf.filter(Boolean).join('<br>') + '</blockquote>');
+      continue;
+    }
+    if ((m = line.match(/^[-*+]\s+\[([ x])\]\s+(.*)/))) {
+      if (listTag !== 'ul') flushList();
+      listTag = 'ul';
+      listBuf.push(`<li class="task"><input type="checkbox" ${m[1]==='x'?'checked':''} disabled> ${inline(m[2])}</li>`);
+      i++; continue;
+    }
+    if ((m = line.match(/^[-*+]\s+(.*)/))) {
+      if (listTag !== 'ul') flushList();
+      listTag = 'ul'; listBuf.push('<li>' + inline(m[1]) + '</li>'); i++; continue;
+    }
+    if ((m = line.match(/^\d+[.)]\s+(.*)/))) {
+      if (listTag !== 'ol') flushList();
+      listTag = 'ol'; listBuf.push('<li>' + inline(m[1]) + '</li>'); i++; continue;
+    }
+    if ((m = line.match(/^!\[[^\]]*\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/))) {
+      flushList();
+      out.push(`<figure><img src="${esc(m[1])}" loading="lazy">` +
+               (m[2] ? `<figcaption>${esc(m[2])}</figcaption>` : '') + '</figure>');
+      i++; continue;
+    }
+    if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i+1])) {
+      flushList();
+      const cells = r => r.split('|').map(c => c.trim()).filter((c, idx, arr) =>
+        !(idx === 0 && c === '') && !(idx === arr.length - 1 && c === ''));
+      let html = '<table><tr>' + cells(line).map(c => `<th>${inline(c)}</th>`).join('') + '</tr>';
+      i += 2;
+      while (i < lines.length && lines[i].includes('|')) {
+        html += '<tr>' + cells(lines[i]).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>';
+        i++;
+      }
+      out.push(html + '</table>');
+      continue;
+    }
+    if ((m = line.match(/^<details[^>]*><summary>(.*?)<\/summary>(.*)/i))) {
+      flushList();
+      const buf = [m[2]]; i++;
+      while (i < lines.length && !/<\/details>/i.test(lines[i])) buf.push(lines[i++]);
+      if (i < lines.length) { buf.push(lines[i].replace(/<\/details>.*/i, '')); i++; }
+      out.push(`<details open><summary>${inline(m[1])}</summary><p>` +
+               buf.filter(l => l.trim()).map(inline).join('</p><p>') + '</p></details>');
+      continue;
+    }
+    if ((m = line.match(/^<footer>(.*?)<\/footer>/i))) {
+      flushList(); out.push(`<footer>${inline(m[1])}</footer>`); i++; continue;
+    }
+    if ((m = line.match(/^<aside>(.*?)(?:<cite>(.*?)<\/cite>)?<\/aside>/i))) {
+      flushList();
+      out.push(`<aside>${inline(m[1])}${m[2] ? `<br><small>— ${inline(m[2])}</small>` : ''}</aside>`);
+      i++; continue;
+    }
+    flushList();
+    const buf = [line];
+    while (i + 1 < lines.length && lines[i+1].trim() &&
+           !/^(#|>|[-*+]\s|\d+[.)]\s|```|\$\$|---|!\[|<|\|)/.test(lines[i+1]))
+      buf.push(lines[++i]);
+    out.push('<p>' + buf.map(inline).join('<br>') + '</p>');
+    i++;
+  }
+  flushList();
+
+  let html = out.length ? out.join('') : '<div class="empty">Пост пустой — начните писать слева</div>';
+  const time = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+  $('chat').innerHTML = `<div class="msg"><div class="bubble"><div class="content">${html}</div>` +
+    `<span class="meta"><svg width="15" height="10" viewBox="0 0 22 14" fill="currentColor"><path d="M11 0C6 0 1.7 2.9 0 7c1.7 4.1 6 7 11 7s9.3-2.9 11-7c-1.7-4.1-6-7-11-7zm0 11.7a4.7 4.7 0 110-9.4 4.7 4.7 0 010 9.4zM11 4a3 3 0 100 6 3 3 0 000-6z"/></svg> 2.4K &nbsp;${time}</span></div></div>`;
+
+  // KaTeX по плейсхолдерам
+  if (mathStore.length) {
+    const walker = document.createTreeWalker($('chat'), NodeFilter.SHOW_TEXT);
+    const targets = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.nodeValue.includes('')) targets.push(walker.currentNode);
+    }
+    targets.forEach(node => {
+      const parts = node.nodeValue.split(/(\d+)/);
+      const frag = document.createDocumentFragment();
+      parts.forEach((part, idx) => {
+        if (idx % 2 === 0) { if (part) frag.appendChild(document.createTextNode(part)); return; }
+        const [tex, display] = mathStore[+part];
+        const span = document.createElement('span');
+        if (window.katex) {
+          try { katex.render(tex, span, {throwOnError: false, displayMode: display}); }
+          catch (e) { span.textContent = tex; }
+        } else {
+          span.textContent = tex;
+          span.style.cssText = 'font-family:Georgia,serif;font-style:italic';
+        }
+        frag.appendChild(span);
+      });
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+}
+
+/* ── Данные ── */
+async function refresh() {
+  const resp = await api('/api/state');
+  if (!resp.ok) return;
+  state = resp;
+  if (resp.name) {
+    $('sideFoot').innerHTML = 'Вы вошли как <b>' + esc(resp.name) +
+      '</b> · <a href="#" id="logoutLink">выйти</a>';
+    $('logoutLink').addEventListener('click', e => {
+      e.preventDefault();
+      localStorage.removeItem('session');
+      showLogin();
+    });
+  }
+  renderChannels(); renderDrafts(); renderScheduled(); renderTargets();
+  $('cntDrafts').textContent = state.drafts.length || '';
+  $('cntScheduled').textContent = state.scheduled.filter(p => p.status === 'pending').length || '';
+  $('cntChannels').textContent = state.channels.length || '';
+}
+function renderTargets() {
+  const sel = $('target');
+  const cur = sel.value || localStorage.getItem('target') || '';
+  sel.innerHTML = '<option value="">Куда публиковать…</option>' +
+    state.channels.map(c =>
+      `<option value="${esc(c.username)}">${esc(c.title)} (${esc(c.username)})</option>`).join('');
+  sel.value = cur;
+}
+$('target').addEventListener('change', () => localStorage.setItem('target', $('target').value));
+
+/* ── Черновики ── */
+function renderDrafts() {
+  const el = $('draftsList');
+  if (!state.drafts.length) {
+    el.innerHTML = `<div class="empty-state">Черновиков нет.<br>
+      Напишите пост в редакторе и нажмите «Сохранить черновик».</div>`;
+    return;
+  }
+  el.innerHTML = state.drafts.map(d => `
+    <div class="card link" data-id="${d.id}">
+      <div class="body">
+        <div class="title">${esc(d.title)}</div>
+        <div class="meta">${fmtDate(d.updated)}</div>
+      </div>
+      <button class="del" data-del="1">Удалить</button>
+    </div>`).join('');
+  el.querySelectorAll('.card').forEach(card => {
+    const id = card.dataset.id;
+    card.addEventListener('click', e => {
+      if (e.target.closest('[data-del]')) return;
+      const d = state.drafts.find(x => x.id === id);
+      md.value = d.markdown;
+      localStorage.setItem('draft', d.markdown);
+      currentDraftId = id;
+      localStorage.setItem('draftId', id);
+      $('draftState').textContent = 'черновик загружен';
+      document.querySelector('#mainNav button[data-view=editor]').click();
+      renderPreview();
+    });
+    card.querySelector('[data-del]').addEventListener('click', async () => {
+      if (!confirm('Удалить черновик?')) return;
+      await api('/api/drafts/delete', {id});
+      refresh();
+    });
+  });
+}
+$('newPostBtn').addEventListener('click', () => {
+  if (md.value.trim() && !confirm('Очистить редактор? Несохранённый текст пропадёт.')) return;
+  md.value = '';
+  currentDraftId = null;
+  localStorage.removeItem('draftId');
+  localStorage.setItem('draft', '');
+  $('draftState').textContent = '';
+  renderPreview();
+  md.focus();
+});
+$('saveDraftBtn').addEventListener('click', async () => {
+  if (!md.value.trim()) { toast('Пост пустой', true); return; }
+  const resp = await api('/api/drafts/save', {id: currentDraftId, markdown: md.value});
+  if (resp.ok) {
+    currentDraftId = resp.id;
+    localStorage.setItem('draftId', resp.id);
+    $('draftState').textContent = 'сохранено';
+    toast('Черновик сохранён');
+    refresh();
+  } else toast(resp.error, true);
+});
+
+/* ── Отложенные ── */
+function renderScheduled() {
+  const el = $('scheduledList');
+  const badges = {pending: 'ожидает', sending: 'отправка…', sent: 'опубликован', error: 'ошибка'};
+  let html = '';
+  if (!state.scheduled.length && !state.published.length) {
+    el.innerHTML = `<div class="empty-state">Отложенных постов нет.<br>
+      В редакторе нажмите «Отложить» и выберите время — сервер опубликует пост сам
+      (компьютер с сервером должен работать в этот момент).</div>`;
+    return;
+  }
+  if (state.scheduled.length) {
+    html += state.scheduled.map(p => `
+      <div class="card">
+        <div class="body">
+          <div class="title">${esc(p.markdown.split('\n')[0].replace(/^#+\s*/, '').slice(0, 60) || '(пусто)')}</div>
+          <div class="meta">${esc(p.target)} · ${fmtDate(p.when)}${p.error ? ' · ' + esc(p.error) : ''}</div>
+        </div>
+        <span class="badge ${p.status === 'sending' ? 'pending' : p.status}">${badges[p.status]}</span>
+        ${p.status === 'pending' ? `<button class="del" data-cancel="${p.id}">Отменить</button>` : ''}
+      </div>`).join('');
+  }
+  if (state.published.length) {
+    html += '<div class="section-h">Опубликовано</div>' + state.published.map(p => `
+      <div class="card">
+        <div class="body">
+          <div class="title">${esc(p.title)}</div>
+          <div class="meta">${esc(p.target)} · ${fmtDate(p.when)}</div>
+        </div>
+      </div>`).join('');
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', async () => {
+    await api('/api/schedule/cancel', {id: b.dataset.cancel});
+    refresh();
+  }));
+}
+$('scheduleBtn').addEventListener('click', () => {
+  if (!md.value.trim()) { toast('Пост пустой', true); return; }
+  if (!$('target').value) { toast('Выберите канал', true); return; }
+  const d = new Date(Date.now() + 3600 * 1000);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  $('scheduleTime').value = d.toISOString().slice(0, 16);
+  $('sheet').classList.add('open');
+});
+$('sheetCancel').addEventListener('click', () => $('sheet').classList.remove('open'));
+$('sheet').addEventListener('click', e => { if (e.target === $('sheet')) $('sheet').classList.remove('open'); });
+$('sheetOk').addEventListener('click', async () => {
+  const when = Math.floor(new Date($('scheduleTime').value).getTime() / 1000);
+  if (!when || isNaN(when)) { toast('Укажите время', true); return; }
+  const resp = await api('/api/schedule/add',
+    {markdown: md.value, target: $('target').value, when});
+  $('sheet').classList.remove('open');
+  if (resp.ok) { toast('Запланировано на ' + fmtDate(when)); refresh(); }
+  else toast(resp.error, true);
+});
+
+/* ── Каналы ── */
+function renderChannels() {
+  const el = $('channelsList');
+  if (!state.channels.length) {
+    el.innerHTML = `<div class="empty-state">Каналы не подключены.<br>
+      Добавьте бота администратором канала и укажите его @username выше.</div>`;
+    return;
+  }
+  el.innerHTML = state.channels.map(c => `
+    <div class="card">
+      <div class="body">
+        <div class="title">${esc(c.title)}</div>
+        <div class="meta">${esc(c.username)}</div>
+      </div>
+      <button class="del" data-u="${esc(c.username)}">Отключить</button>
+    </div>`).join('');
+  el.querySelectorAll('.del').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Отключить канал ' + b.dataset.u + '?')) return;
+    await api('/api/channels/remove', {username: b.dataset.u});
+    refresh();
+  }));
+}
+$('addChannelBtn').addEventListener('click', async () => {
+  const username = $('channelInput').value.trim();
+  if (!username) return;
+  $('addChannelBtn').disabled = true;
+  const resp = await api('/api/channels/add', {username});
+  $('addChannelBtn').disabled = false;
+  if (resp.ok) { $('channelInput').value = ''; toast('Канал подключён'); refresh(); }
+  else toast(resp.error, true);
+});
+
+/* ── Публикация и превью в TG ── */
+$('publishBtn').addEventListener('click', async function () {
+  if (!md.value.trim()) { toast('Пост пустой', true); return; }
+  const target = $('target').value;
+  if (!target) { toast('Выберите канал', true); return; }
+  if (!confirm('Опубликовать пост в ' + target + '?')) return;
+  this.disabled = true;
+  toast('Публикация…');
+  const resp = await api('/api/publish', {markdown: md.value, target});
+  this.disabled = false;
+  if (resp.ok) { toast('Опубликовано в ' + target); refresh(); }
+  else toast(resp.error, true);
+});
+$('tgPreviewBtn').addEventListener('click', async function () {
+  if (!md.value.trim()) { toast('Пост пустой', true); return; }
+  this.disabled = true;
+  const resp = await api('/api/preview', {markdown: md.value});
+  this.disabled = false;
+  toast(resp.ok ? 'Превью отправлено в чат с ботом' : resp.error, !resp.ok);
+});
+
+window.addEventListener('load', renderPreview);
+refresh();
+renderPreview();
+</script>
+</body>
+</html>

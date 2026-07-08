@@ -1,0 +1,8 @@
+# секреты и локальные данные
+.env
+data.json
+state.json
+login_codes.json
+__pycache__/
+*.pyc
+.DS_Store
