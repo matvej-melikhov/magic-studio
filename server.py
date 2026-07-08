@@ -61,6 +61,12 @@ def user_data(data: dict, user_id) -> dict:
     box = data["users"].setdefault(str(user_id), {})
     for key, empty in EMPTY_USER.items():
         box.setdefault(key, [])
+    # миграция: раньше опубликованные оставались в очереди со статусом sent
+    stale = [p for p in box["scheduled"] if p.get("status") == "sent"]
+    if stale:
+        box["scheduled"] = [p for p in box["scheduled"] if p.get("status") != "sent"]
+        for p in stale:
+            log_published(box, p["target"], p["markdown"])
     return box
 
 
@@ -486,7 +492,7 @@ class Handler(BaseHTTPRequestHandler):
                     box = user_data(store, uid)
                     box["scheduled"] = [p for p in box["scheduled"]
                                         if not (p["id"] == post_id
-                                                and p["status"] == "pending")]
+                                                and p["status"] != "sending")]
                     save_data(store)
                 self._json({"ok": True})
             else:

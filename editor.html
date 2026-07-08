@@ -1083,7 +1083,7 @@ function renderScheduled() {
         </div>
         ${p.status === 'pending'
           ? `<span class="countdown" data-when="${p.when}">${countdownText(p.when)}</span>`
-          : `<span class="badge ${p.status === 'sending' ? 'pending' : p.status}">${badges[p.status]}</span>`}
+          : `<span class="badge ${p.status === 'sending' ? 'pending' : p.status}">${badges[p.status] || p.status}</span>`}
         ${p.status !== 'sending' ? `<button class="edit" data-edit="${p.id}">Изменить</button>
         <button class="del" data-cancel="${p.id}">Отменить</button>` : ''}
       </div>
