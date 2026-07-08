@@ -87,13 +87,14 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   aside { position: relative; }
-  /* «ручка» на правом краю панели, по центру высоты */
+  /* «ручка» на правом краю панели: узкая вертикальная, по центру высоты */
   #sideToggle {
-    position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
-    width: 26px; height: 26px; border-radius: 50%; color: var(--muted);
+    position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 56px; border-radius: 8px; color: var(--muted);
     background: var(--surface); border: 1px solid var(--line);
     display: grid; place-items: center; z-index: 9; box-shadow: var(--shadow-card);
   }
+  #sideToggle svg { width: 11px; height: 11px; }
   #sideToggle:hover { color: var(--accent); border-color: var(--accent); }
   #app.side-collapsed { grid-template-columns: 64px 1fr; }
   #app.side-collapsed aside { padding: 20px 9px 16px; }
