@@ -632,16 +632,25 @@ async function prepareTgLogin() {
     $('loginError').textContent = 'Сервер недоступен — обновите страницу';
   }
 }
+async function pollLogin() {
+  if (!loginToken || !$('login').classList.contains('open')) return;
+  const resp = await api('/api/login', {code: loginToken});
+  if (resp.ok) finishLogin(resp.token);
+}
 $('tgLoginBtn').addEventListener('click', () => {
   $('loginWait').hidden = false;
   clearInterval(loginPollTimer);
   let attempts = 0;
-  loginPollTimer = setInterval(async () => {
-    if (++attempts > 150) { clearInterval(loginPollTimer); return; }
-    const resp = await api('/api/login', {code: loginToken});
-    if (resp.ok) finishLogin(resp.token);
+  loginPollTimer = setInterval(() => {
+    if (++attempts > 300) { clearInterval(loginPollTimer); return; }
+    pollLogin();
   }, 2000);
 });
+/* Safari замораживает таймеры в фоне — проверяем сразу при возврате на вкладку */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) pollLogin();
+});
+window.addEventListener('focus', pollLogin);
 $('loginBtn').addEventListener('click', doLogin);
 $('loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 async function doLogin() {
