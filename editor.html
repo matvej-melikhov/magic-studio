@@ -623,8 +623,16 @@ function finishLogin(token) {
   toast('Вы вошли');
   refresh();
 }
+function randomHex(len) {
+  /* crypto.randomUUID недоступен на http:// (не-secure context) —
+     getRandomValues работает везде */
+  const bytes = new Uint8Array(len / 2);
+  (window.crypto || {getRandomValues: a => a.map(() => Math.random() * 256)})
+    .getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
 async function prepareTgLogin() {
-  loginToken = 'login-' + crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+  loginToken = 'login-' + randomHex(24);
   const cfg = await api('/api/config');
   if (cfg.ok && cfg.bot) {
     $('tgLoginBtn').href = 'https://t.me/' + cfg.bot + '?start=' + loginToken;
