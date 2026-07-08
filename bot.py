@@ -155,13 +155,27 @@ def resolve_target(chat_id: int) -> "int | str":
     return chat_id
 
 
-def handle_post_command(chat_id: int, text: str):
+def is_channel_admin(target: str, user_id: int) -> tuple[bool, str]:
+    """Проверяет, что отправитель — администратор канала."""
+    ok, admins = api_call("getChatAdministrators", chat_id=target)
+    if not ok:
+        return False, f"Не удалось проверить канал: {admins}"
+    if not any(a.get("user", {}).get("id") == user_id for a in admins):
+        return False, "Вы не администратор этого канала."
+    return True, ""
+
+
+def handle_post_command(chat_id: int, user_id: int, text: str):
     parts = text.split(maxsplit=1)
     state = post_state.setdefault(chat_id, {})
     if len(parts) > 1:
         target = parts[1].strip()
         if not (target.startswith("@") or target.lstrip("-").isdigit()):
             send_plain(chat_id, "Укажите канал как @username или числовой id.")
+            return
+        ok, error = is_channel_admin(target, user_id)
+        if not ok:
+            send_plain(chat_id, error)
             return
         state["target"] = target
     if not state.get("target"):
@@ -205,7 +219,7 @@ def handle_message(message: dict):
                 "Введите его на странице входа в течение 10 минут.",
             )
         elif text.startswith("/post"):
-            handle_post_command(chat_id, text)
+            handle_post_command(chat_id, message.get("from", {}).get("id", 0), text)
         elif text.startswith("/cancel"):
             post_state.get(chat_id, {}).pop("pending", None)
             send_plain(chat_id, "Публикация отменена.")
