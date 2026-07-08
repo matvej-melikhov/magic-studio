@@ -83,14 +83,21 @@
 
   /* ── Сворачивание бокового меню (только ПК) ── */
   .brand-text { flex: 1; min-width: 0; }
-  #sideToggle {
-    width: 26px; height: 26px; border-radius: 7px; color: var(--muted);
-    display: grid; place-items: center; flex: 0 0 auto;
+  .brand .name, .brand .tag {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  #sideToggle:hover { background: var(--bg); color: var(--ink); }
+  aside { position: relative; }
+  /* «ручка» на правом краю панели, по центру высоты */
+  #sideToggle {
+    position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; border-radius: 50%; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--line);
+    display: grid; place-items: center; z-index: 9; box-shadow: var(--shadow-card);
+  }
+  #sideToggle:hover { color: var(--accent); border-color: var(--accent); }
   #app.side-collapsed { grid-template-columns: 64px 1fr; }
   #app.side-collapsed aside { padding: 20px 9px 16px; }
-  #app.side-collapsed .brand { flex-direction: column; gap: 8px; padding: 0 0 16px; }
+  #app.side-collapsed .brand { justify-content: center; padding: 0 0 16px; }
   #app.side-collapsed .brand-text { display: none; }
   #app.side-collapsed #sideToggle svg { transform: rotate(180deg); }
   #app.side-collapsed aside nav button { justify-content: center; padding: 11px 0; }
@@ -429,7 +436,7 @@
       border-right: none; border-top: 1px solid var(--line);
       padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
     }
-    .brand, aside .foot { display: none; }
+    .brand, aside .foot, #sideToggle { display: none; }
     #app.side-collapsed { grid-template-columns: 1fr; }
     #app.side-collapsed .lbl { display: inline; }
     aside nav { flex-direction: row; flex: 1; gap: 0; }
@@ -487,10 +494,10 @@
   <div class="brand">
     <div class="logo">Md</div>
     <div class="brand-text"><div class="name">Студия постов</div><div class="tag">rich-формат Telegram</div></div>
-    <button id="sideToggle" title="Свернуть меню">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
-    </button>
   </div>
+  <button id="sideToggle" title="Свернуть меню">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
+  </button>
   <nav id="mainNav">
     <button data-view="editor" class="active" title="Редактор">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
