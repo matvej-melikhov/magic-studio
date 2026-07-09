@@ -617,15 +617,15 @@
     }
     @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
       #mtop, #sidebar {
-        background: color-mix(in srgb, var(--surface) 72%, transparent);
+        background: color-mix(in srgb, var(--surface) 55%, transparent);
         -webkit-backdrop-filter: blur(18px) saturate(1.6);
         backdrop-filter: blur(18px) saturate(1.6);
       }
       #sidebar nav button.active { background: color-mix(in srgb, var(--accent) 16%, transparent); }
     }
-    /* контент начинается под шапкой; скролл-области получают запас
-       снизу, чтобы последние элементы выезжали из-под стекла */
-    #content { padding-top: calc(46px + env(safe-area-inset-top)); }
+    /* Отступ под шапку задаётся внутри скролл-областей, а не на #content:
+       так контент страниц реально заезжает под стекло при прокрутке */
+    #view-editor { padding-top: calc(46px + env(safe-area-inset-top)); }
     #chat { padding-bottom: calc(28px + 62px + env(safe-area-inset-bottom)); }
     #toast { bottom: calc(66px + env(safe-area-inset-bottom)); }
     #app.side-collapsed { grid-template-columns: 1fr; }
@@ -665,7 +665,10 @@
     .editor-foot .btn { flex: 1; padding: 12px 8px; font-size: 13px; }
     #md { padding: 10px 14px 14px; font-size: 15px; }
 
-    .page { padding: 18px 16px calc(18px + 62px + env(safe-area-inset-bottom)); }
+    .page {
+      padding: calc(18px + 46px + env(safe-area-inset-top)) 16px
+               calc(18px + 62px + env(safe-area-inset-bottom));
+    }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
