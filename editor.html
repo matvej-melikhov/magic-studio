@@ -308,7 +308,8 @@
   .bubble summary {
     font-weight: 400; cursor: pointer; background: var(--tg-code-bg); padding: 12px 8px;
   }
-  .bubble details > p { padding: 12px 10px 4px; margin: 0 0 8px; }
+  .bubble details .dbody { padding: 12px 10px 4px; }
+  .bubble details .dbody img, .bubble details .dbody video { max-width: 100%; margin: 6px 0; }
   .bubble footer {
     margin-top: 8px; font-size: 12px; line-height: 18px; color: var(--tg-sub);
   }
@@ -1001,7 +1002,8 @@ function mediaBlock(url, caption) {
 }
 
 function buildContentHtml(src) {
-  mathStore.length = 0;
+  // mathStore НЕ сбрасывается здесь: функция рекурсивна (details),
+  // сброс делает вызывающий код перед корневым вызовом
   const out = [], footnotes = [];
   const lines = src.split('\n');
   let i = 0, listBuf = [], listTag = '';
@@ -1114,8 +1116,9 @@ function buildContentHtml(src) {
       const buf = [m[2]]; i++;
       while (i < lines.length && !/<\/details>/i.test(lines[i])) buf.push(lines[i++]);
       if (i < lines.length) { buf.push(lines[i].replace(/<\/details>.*/i, '')); i++; }
-      out.push(`<details open><summary>${inline(m[1])}</summary><p>` +
-               buf.filter(l => l.trim()).map(inline).join('</p><p>') + '</p></details>');
+      // тело details — полноценный rich-контент, парсим рекурсивно
+      out.push(`<details open><summary>${inline(m[1])}</summary>` +
+               `<div class="dbody">${buildContentHtml(buf.join('\n'))}</div></details>`);
       continue;
     }
     if ((m = line.match(/^<footer>(.*?)<\/footer>/i))) {
@@ -1169,6 +1172,7 @@ function applyMath(root) {
 }
 
 function renderPreview() {
+  mathStore.length = 0;
   const html = buildContentHtml(md.value) ||
     '<div class="empty">Пост пустой — начните писать слева</div>';
   const time = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
@@ -1358,6 +1362,7 @@ function renderScheduled() {
     if (!box.hidden) { box.hidden = true; return; }
     if (!box.innerHTML) {
       const post = state.scheduled.find(p => p.id === id);
+      mathStore.length = 0;
       box.innerHTML = '<div class="bubble"><div class="content">' +
         (buildContentHtml(post.markdown) || '<div class="empty">Пост пустой</div>') +
         '</div></div>';
@@ -1378,6 +1383,7 @@ function renderScheduled() {
     const box = el.querySelector(`[data-pubpreview="${id}"]`);
     if (!box.hidden) { box.hidden = true; return; }
     if (!box.innerHTML) {
+      mathStore.length = 0;
       box.innerHTML = '<div class="bubble"><div class="content">' +
         buildContentHtml(post.markdown) + '</div></div>';
       applyMath(box);
