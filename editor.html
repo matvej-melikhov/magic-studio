@@ -983,15 +983,20 @@ md.addEventListener('input', () => {
   clearTimeout(previewTimer);
   previewTimer = setTimeout(renderPreview, 250);
 });
+/* Вставка через execCommand — попадает в нативную историю отмены,
+   поэтому Ctrl+Z / Cmd+Z отменяет и кнопки панели, и набор текста */
+function typeText(text, selStart, selEnd) {
+  md.focus();
+  md.setSelectionRange(selStart, selEnd);
+  document.execCommand('insertText', false, text);
+}
+
 function insert(before, after, placeholder) {
   const s = md.selectionStart, e = md.selectionEnd;
   const sel = md.value.slice(s, e) || placeholder || '';
-  md.setRangeText(before + sel + after, s, e, 'end');
-  if (!md.value.slice(s, e)) {
-    md.selectionStart = s + before.length;
-    md.selectionEnd = s + before.length + sel.length;
-  }
-  md.focus();
+  typeText(before + sel + after, s, e);
+  md.selectionStart = s + before.length;
+  md.selectionEnd = s + before.length + sel.length;
   localStorage.setItem('draft', md.value);
   renderPreview();
 }
@@ -1002,14 +1007,13 @@ function insertBlock(tpl, ph) {
   const sel = md.value.slice(s, e) || ph || '';
   const body = tpl.includes('{sel}') ? tpl.replace('{sel}', sel) : tpl;
   const prefix = s > 0 && md.value[s - 1] !== '\n' ? '\n' : '';
-  md.setRangeText(prefix + body + '\n', s, e, 'end');
+  typeText(prefix + body + '\n', s, e);
   const idx = tpl.indexOf('{sel}');
   if (idx !== -1) {
     const start = s + prefix.length + idx;
     md.selectionStart = start;
     md.selectionEnd = start + sel.length;
   }
-  md.focus();
   localStorage.setItem('draft', md.value);
   renderPreview();
 }
@@ -1020,8 +1024,10 @@ document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener
   else if (btn.dataset.block) {
     const pos = md.selectionStart;
     const lineStart = md.value.lastIndexOf('\n', pos - 1) + 1;
-    md.setRangeText(btn.dataset.block, lineStart, lineStart, 'end');
-    md.focus(); localStorage.setItem('draft', md.value); renderPreview();
+    typeText(btn.dataset.block, lineStart, lineStart);
+    const shift = btn.dataset.block.length;
+    md.setSelectionRange(pos + shift, pos + shift);
+    localStorage.setItem('draft', md.value); renderPreview();
   }
   else if (btn.dataset.snippet) insertBlock(btn.dataset.snippet, btn.dataset.ph);
 }));
@@ -1030,8 +1036,11 @@ document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener
 $('footnoteBtn').addEventListener('click', () => {
   const used = [...md.value.matchAll(/\[\^(\d+)\]/g)].map(m => +m[1]);
   const n = used.length ? Math.max(...used) + 1 : 1;
-  insert(`[^${n}]`, '', '');
-  md.value = md.value.replace(/\s*$/, '') + `\n[^${n}]: Текст сноски`;
+  const pos = md.selectionStart;
+  typeText(`[^${n}]`, pos, md.selectionEnd);
+  const end = md.value.replace(/\s+$/, '').length;
+  typeText(`\n[^${n}]: Текст сноски`, end, md.value.length);
+  md.setSelectionRange(pos + `[^${n}]`.length, pos + `[^${n}]`.length);
   localStorage.setItem('draft', md.value);
   renderPreview();
 });
