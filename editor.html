@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#F6F8FB" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0E141C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161E29" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <title>Студия постов</title>
@@ -56,6 +56,9 @@
   }
   * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
+  /* Канва документа — в цвет панелей: iOS красит ею области за пределами
+     вьюпорта (статус-бар, зона home-индикатора), полосы сливаются с шапкой */
+  html { background: var(--surface); }
   body {
     background: var(--bg); color: var(--ink);
     font: 14px/1.5 "Inter", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
