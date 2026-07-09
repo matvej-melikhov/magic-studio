@@ -626,7 +626,7 @@
           </span>
           <span class="group">
             <button data-snippet="[текст](https://)" title="Ссылка">🔗</button>
-            <button id="imgBtn" title="Загрузить фото">📷</button>
+            <button id="imgBtn" title="Загрузить медиа: фото, видео, аудио, гиф">📷</button>
             <button id="imgUrlBtn" title="Медиа по ссылке: фото, видео, аудио, гиф, голосовое">🖼</button>
             <button data-snippet="&#10;&lt;tg-collage&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-collage&gt;&#10;" title="Коллаж из медиа">⊟⊟</button>
             <button data-snippet="&#10;&lt;tg-slideshow&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-slideshow&gt;&#10;" title="Слайдшоу">▷▷</button>
@@ -718,7 +718,7 @@
 </div>
 
 <div id="toast"></div>
-<input type="file" id="imgInput" accept="image/*" hidden>
+<input type="file" id="imgInput" accept="image/*,video/*,audio/*" hidden>
 
 <script>
 'use strict';
@@ -932,14 +932,19 @@ $('imgBtn').addEventListener('click', () => $('imgInput').click());
 $('imgInput').addEventListener('change', async () => {
   const file = $('imgInput').files[0];
   if (!file) return;
-  toast('Загрузка фото…');
+  if (file.size > 45 * 1024 * 1024) {
+    toast('Файл больше 45 МБ — Telegram не примет такое медиа по ссылке', true);
+    $('imgInput').value = '';
+    return;
+  }
+  toast('Загрузка медиа…');
   const data = await new Promise(res => {
     const r = new FileReader();
     r.onload = () => res(r.result.split(',')[1]);
     r.readAsDataURL(file);
   });
   const resp = await api('/api/upload', {name: file.name, data});
-  if (resp.ok) { insert('\n![](' + resp.url + ' "Подпись")\n', '', ''); toast('Фото добавлено'); }
+  if (resp.ok) { insert('\n![](' + resp.url + ' "Подпись")\n', '', ''); toast('Медиа добавлено'); }
   else toast(resp.error, true);
   $('imgInput').value = '';
 });
