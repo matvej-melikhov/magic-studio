@@ -91,8 +91,7 @@ def verify_channel_admin(username: str, user_id) -> tuple[bool, str | dict]:
     return True, chat
 
 
-def trampoline_upload(filename: str, blob: bytes) -> tuple[bool, str]:
-    """Заливает файл на litterbox, возвращает (ok, url|ошибка)."""
+def _upload_litterbox(filename: str, blob: bytes) -> tuple[bool, str]:
     try:
         resp = requests.post(
             LITTERBOX_API,
@@ -103,8 +102,34 @@ def trampoline_upload(filename: str, blob: bytes) -> tuple[bool, str]:
     except requests.RequestException as e:
         return False, f"litterbox недоступен: {e}"
     if not resp.ok or not resp.text.startswith("http"):
-        return False, f"litterbox ответил: {resp.status_code} {resp.text[:200]}"
+        return False, f"litterbox: {resp.status_code}"
     return True, resp.text.strip()
+
+
+def _upload_uguu(filename: str, blob: bytes) -> tuple[bool, str]:
+    try:
+        resp = requests.post(
+            "https://uguu.se/upload",
+            files={"files[]": (filename, blob)},
+            timeout=120,
+        )
+        data = resp.json()
+        url = data["files"][0]["url"]
+    except (requests.RequestException, ValueError, KeyError, IndexError) as e:
+        return False, f"uguu недоступен: {e}"
+    return True, url
+
+
+def trampoline_upload(filename: str, blob: bytes) -> tuple[bool, str]:
+    """Заливает файл на одноразовый хостинг; при сбое пробует запасной."""
+    errors = []
+    for uploader in (_upload_litterbox, _upload_uguu):
+        ok, result = uploader(filename, blob)
+        if ok:
+            return True, result
+        errors.append(result)
+        log.warning("Трамплин не сработал: %s", result)
+    return False, "Хостинги-трамплины недоступны: " + "; ".join(errors)
 
 
 def store_image(chat_id: int, filename: str, blob: bytes) -> tuple[bool, str]:
