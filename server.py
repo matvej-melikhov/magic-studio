@@ -91,17 +91,18 @@ AI_PROMPTS = {
 }
 
 
-def ai_complete(action: str, text: str) -> tuple[bool, str]:
-    """Запрос к локальной модели Ollama. Возвращает (ok, текст|ошибка)."""
+def ai_stream(action: str, text: str):
+    """Генератор чанков ответа модели: {'t': текст} | {'error': …} | {'done': True}."""
     system = AI_PROMPTS.get(action)
     if not system:
-        return False, "Неизвестное действие."
+        yield {"error": "Неизвестное действие."}
+        return
     try:
-        resp = requests.post(
+        with requests.post(
             f"{OLLAMA_URL}/api/chat",
             json={
                 "model": AI_MODEL,
-                "stream": False,
+                "stream": True,
                 "think": False,
                 "messages": [
                     {"role": "system", "content": system},
@@ -109,21 +110,28 @@ def ai_complete(action: str, text: str) -> tuple[bool, str]:
                 ],
                 "options": {"temperature": 0.7, "num_ctx": 8192},
             },
+            stream=True,
             timeout=300,
-        )
+        ) as resp:
+            if not resp.ok:
+                yield {"error": f"Ollama: {resp.status_code} {resp.text[:200]}"}
+                return
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                chunk = json.loads(line)
+                if chunk.get("error"):
+                    yield {"error": f"Ollama: {chunk['error']}"}
+                    return
+                part = (chunk.get("message") or {}).get("content", "")
+                if part:
+                    yield {"t": part}
+                if chunk.get("done"):
+                    break
+        yield {"done": True}
     except requests.RequestException as e:
-        return False, ("Ollama недоступен — запустите `ollama serve` "
-                       f"({e.__class__.__name__})")
-    if not resp.ok:
-        return False, f"Ollama: {resp.status_code} {resp.text[:200]}"
-    content = (resp.json().get("message") or {}).get("content", "").strip()
-    if not content:
-        return False, "Модель вернула пустой ответ."
-    # некоторые модели заворачивают ответ в код-блок вопреки промпту
-    m = re.fullmatch(r"```(?:markdown|md)?\n(.*)\n```", content, re.S)
-    if m:
-        content = m.group(1).strip()
-    return True, content
+        yield {"error": ("Ollama недоступен — запустите `ollama serve` "
+                         f"({e.__class__.__name__})")}
 
 
 def consume_login_code(code: str) -> dict | None:
@@ -509,8 +517,25 @@ class Handler(BaseHTTPRequestHandler):
                 if not text:
                     self._json({"ok": False, "error": "Пустой запрос."})
                     return
-                ok, result = ai_complete(data.get("action", ""), text)
-                self._json({"ok": ok, ("text" if ok else "error"): result})
+                # потоковый ответ: NDJSON-чанки по мере генерации модели
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                try:
+                    for chunk in ai_stream(data.get("action", ""), text):
+                        self.wfile.write(
+                            (json.dumps(chunk, ensure_ascii=False) + "\n").encode())
+                        self.wfile.flush()
+                except OSError:
+                    log.info("Клиент оборвал AI-стрим")
+                except Exception as e:
+                    log.exception("Ошибка AI-стрима")
+                    try:
+                        self.wfile.write(
+                            (json.dumps({"error": str(e)}) + "\n").encode())
+                    except OSError:
+                        pass
             elif self.path == "/api/schedule/cancel":
                 storage.sched_cancel(uid, self._read_json().get("id", ""))
                 self._json({"ok": True})
