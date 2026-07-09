@@ -601,11 +601,13 @@
     .workspace { grid-template-columns: 1fr; }
     .editor-pane { border-right: none; }
 
-    /* Предпросмотр — вкладка сегмент-переключателя над редактором */
+    /* Предпросмотр — вкладка сегмент-переключателя над редактором;
+       нижняя панель («В черновики» / «Опубликовать») остаётся видимой */
     .mseg { display: flex; }
     .preview-pane { display: none; }
-    .workspace.show-preview .preview-pane { display: flex; }
-    .workspace.show-preview .editor-pane { display: none; }
+    .workspace.show-preview { grid-template-rows: minmax(0, 1fr) auto; }
+    .workspace.show-preview .preview-pane { display: flex; order: -1; min-height: 0; }
+    .workspace.show-preview .editor-pane > :not(.editor-foot) { display: none; }
 
     /* Панель инструментов — одна строка с прокруткой */
     .toolbar {
