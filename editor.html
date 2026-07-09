@@ -1517,7 +1517,7 @@ function renderScheduled() {
   const published = state.published.filter(p => !schedFilter || p.target === schedFilter);
 
   if (scheduled.length) {
-    html += scheduled.map(p => `
+    html += '<div class="section-h">Отложено</div>' + scheduled.map(p => `
       <div class="card sched" data-id="${p.id}">
         <div class="body">
           <div class="title">${esc(p.markdown.split('\n')[0].replace(/^#+\s*/, '').slice(0, 60) || '(пусто)')}</div>
