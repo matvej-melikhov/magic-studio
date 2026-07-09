@@ -134,9 +134,10 @@
     display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 48px 10px 20px;
     flex: 0 0 auto; background: var(--bg); border-top: 1px solid var(--line-soft);
     border-bottom: 1px solid var(--line-soft); margin-bottom: 4px;
-    position: relative; max-height: 51px; overflow: hidden;
+    position: relative;
   }
-  .toolbar.open { max-height: none; }
+  /* свёрнуто: видны первые две группы, остальные скрыты полностью */
+  .toolbar:not(.open) .group:nth-child(n+3) { display: none; }
   #toolsToggle {
     position: absolute; top: 10px; right: 14px; width: 30px; height: 31px;
     display: grid; place-items: center; color: var(--muted);
@@ -614,8 +615,9 @@
     /* Панель инструментов — одна строка с прокруткой */
     .toolbar {
       flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none; padding: 10px 14px; max-height: none;
+      scrollbar-width: none; padding: 10px 14px;
     }
+    .toolbar:not(.open) .group:nth-child(n+3) { display: flex; }
     #toolsToggle { display: none; }
     .toolbar::-webkit-scrollbar { display: none; }
     .toolbar .group { flex: 0 0 auto; }
