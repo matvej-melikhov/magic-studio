@@ -61,7 +61,7 @@
 
   /* ═══ Каркас: боковая панель + контент ═══ */
   #app { display: grid; grid-template-columns: 232px 1fr; height: 100dvh; }
-  aside {
+  #sidebar {
     background: var(--surface); border-right: 1px solid var(--line);
     display: flex; flex-direction: column; padding: 20px 12px 16px;
   }
@@ -73,30 +73,30 @@
   }
   .brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
   .brand .tag { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
-  aside nav { display: flex; flex-direction: column; gap: 2px; }
-  aside nav button {
+  #sidebar nav { display: flex; flex-direction: column; gap: 2px; }
+  #sidebar nav button {
     display: flex; align-items: center; gap: 11px; padding: 10px 12px;
     border-radius: var(--r-pill); font-size: 13.5px; font-weight: 500; color: var(--muted);
     text-align: left;
   }
-  aside nav button svg { flex: 0 0 auto; }
-  aside nav button .cnt {
+  #sidebar nav button svg { flex: 0 0 auto; }
+  #sidebar nav button .cnt {
     margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted);
     background: var(--bg); border-radius: var(--r-pill); padding: 1px 7px;
   }
-  aside nav button:hover { background: var(--bg); }
-  aside nav button.active { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--accent); }
-  aside nav button.active .cnt { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-  aside .foot { margin-top: auto; padding: 10px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
-  aside .foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
-  aside .foot a:hover { text-decoration: underline; }
+  #sidebar nav button:hover { background: var(--bg); }
+  #sidebar nav button.active { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--accent); }
+  #sidebar nav button.active .cnt { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+  #sidebar .foot { margin-top: auto; padding: 10px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  #sidebar .foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  #sidebar .foot a:hover { text-decoration: underline; }
 
   /* ── Сворачивание бокового меню (только ПК) ── */
   .brand-text { flex: 1; min-width: 0; }
   .brand .name, .brand .tag {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  aside { position: relative; }
+  #sidebar { position: relative; }
   /* «язычок» заподлицо с границей панели, по центру высоты */
   #sideToggle {
     position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
@@ -107,13 +107,13 @@
   #sideToggle svg { width: 10px; height: 10px; }
   #sideToggle:hover { color: var(--accent); background: var(--bg); }
   #app.side-collapsed { grid-template-columns: 64px 1fr; }
-  #app.side-collapsed aside { padding: 20px 9px 16px; }
+  #app.side-collapsed #sidebar { padding: 20px 9px 16px; }
   #app.side-collapsed .brand { justify-content: center; padding: 0 0 16px; }
   #app.side-collapsed .brand-text { display: none; }
   #app.side-collapsed #sideToggle svg { transform: rotate(180deg); }
-  #app.side-collapsed aside nav button { justify-content: center; padding: 11px 0; }
+  #app.side-collapsed #sidebar nav button { justify-content: center; padding: 11px 0; }
   #app.side-collapsed .lbl, #app.side-collapsed .cnt,
-  #app.side-collapsed aside .foot { display: none; }
+  #app.side-collapsed #sidebar .foot { display: none; }
 
   #content { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .view { flex: 1; display: none; flex-direction: column; overflow: hidden; }
@@ -493,20 +493,20 @@
   @media (max-width: 900px) {
     /* Контент занимает всё, нижняя навигация — только свою высоту */
     #app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
-    aside {
+    #sidebar {
       order: 2; flex-direction: row; align-items: stretch; height: auto;
       border-right: none; border-top: 1px solid var(--line);
       padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
     }
-    .brand, aside .foot, #sideToggle { display: none; }
+    .brand, #sidebar .foot, #sideToggle { display: none; }
     #app.side-collapsed { grid-template-columns: 1fr; }
     #app.side-collapsed .lbl { display: inline; }
-    aside nav { flex-direction: row; flex: 1; gap: 0; }
-    aside nav button {
+    #sidebar nav { flex-direction: row; flex: 1; gap: 0; }
+    #sidebar nav button {
       flex: 1; flex-direction: column; justify-content: center; gap: 3px;
       font-size: 10px; padding: 7px 2px; border-radius: var(--r-pill);
     }
-    aside nav button .cnt { display: none; }
+    #sidebar nav button .cnt { display: none; }
     #content { order: 1; }
     .workspace { grid-template-columns: 1fr; }
     .editor-pane { border-right: none; }
@@ -552,7 +552,7 @@
 </head>
 <body>
 <div id="app">
-<aside>
+<aside id="sidebar">
   <div class="brand">
     <div class="logo">Md</div>
     <div class="brand-text"><div class="name">Студия постов</div><div class="tag">rich-формат Telegram</div></div>
