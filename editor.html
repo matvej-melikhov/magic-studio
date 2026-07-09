@@ -8,25 +8,31 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
   :root {
-    --bg: #EEF1F4; --surface: #FFFFFF; --ink: #1C242C; --muted: #7A8691;
-    --line: #DDE3E9; --line-soft: #E9EDF1;
-    --accent: #3390EC; --accent-hover: #2A7FD4; --accent-ink: #FFFFFF;
-    --danger: #D9483B; --ok: #3E9E63; --pending: #C08A2D;
+    /* «Студия»-flat: воздух, белые панели, hairline-границы,
+       один градиентный акцент */
+    --bg: #F6F8FB; --surface: #FFFFFF; --ink: #18202B; --muted: #77839B;
+    --line: #E7EBF1; --line-soft: #EFF2F7;
+    --accent: #2AABEE; --accent-hover: #1D9AD9; --accent-ink: #FFFFFF;
+    --accent2: #6366F1;
+    --grad: linear-gradient(135deg, #2AABEE 0%, #6366F1 100%);
+    --danger: #E0564A; --ok: #3FA56C; --pending: #C08A2D;
     /* Точные цвета tdesktop (classic light): windowFg, msgInBg, windowBgOver,
        windowSubTextFg, windowActiveTextFg, inputBorderFg, msgInDateFg */
-    --chat-bg: #E3EAF2;
+    --chat-bg: #E7EEF5;
     --bubble: #FFFFFF; --bubble-ink: #000000; --bubble-meta: #A0ACB6;
     --tg-link: #168ACD; --tg-code-bg: #F1F1F1; --tg-quote: #168ACD;
     --tg-sub: #999999; --tg-border: #E0E0E0;
-    --shadow-card: 0 1px 2px rgba(28,36,44,.06), 0 4px 16px rgba(28,36,44,.04);
+    --shadow-card: 0 1px 2px rgba(24,32,43,.04);
     --shadow-bubble: 0 1px 2px rgba(16,35,47,.12);
   }
   :root[data-theme="dark"], :root.dark { color-scheme: dark; }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0E1621; --surface: #17212B; --ink: #EDF1F4; --muted: #78878F;
-      --line: #101921; --line-soft: #222E3A;
-      --accent: #5EB2F0; --accent-hover: #74BEF4; --accent-ink: #0E1621;
+      --bg: #0E141C; --surface: #161E29; --ink: #ECF1F7; --muted: #7C89A0;
+      --line: #212B38; --line-soft: #1C2531;
+      --accent: #4DB4F0; --accent-hover: #66C0F5; --accent-ink: #FFFFFF;
+      --accent2: #7B7EF4;
+      --grad: linear-gradient(135deg, #3AA3E4 0%, #6D70E8 100%);
       --danger: #E56A5E; --ok: #5CB884; --pending: #D8A254;
       /* tdesktop night: msgInBg #182533, windowFg #F5F5F5, windowBgOver #232E3C,
          windowSubTextFg #708499, windowActiveTextFg #6AB2F2 */
@@ -57,16 +63,16 @@
   }
   .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 20px; }
   .brand .logo {
-    width: 34px; height: 34px; border-radius: 9px; background: var(--accent);
-    color: var(--accent-ink); display: grid; place-items: center; font-weight: 800;
+    width: 36px; height: 36px; border-radius: 12px; background: var(--grad);
+    color: #fff; display: grid; place-items: center; font-weight: 800;
     font-size: 16px; letter-spacing: -.5px; flex: 0 0 auto;
   }
   .brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
   .brand .tag { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
   aside nav { display: flex; flex-direction: column; gap: 2px; }
   aside nav button {
-    display: flex; align-items: center; gap: 11px; padding: 9px 11px;
-    border-radius: 8px; font-size: 13.5px; font-weight: 500; color: var(--muted);
+    display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+    border-radius: 11px; font-size: 13.5px; font-weight: 500; color: var(--muted);
     text-align: left;
   }
   aside nav button svg { flex: 0 0 auto; }
@@ -122,7 +128,8 @@
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 20px 10px; flex: 0 0 auto; }
   .toolbar .group {
-    display: flex; border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden;
+    display: flex; border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden;
+    background: var(--surface);
   }
   .toolbar .group button {
     padding: 6px 10px; font-size: 12.5px; color: var(--muted); font-weight: 600;
@@ -155,8 +162,8 @@
   .pub-wrap .caret { font-size: 10px; opacity: .8; }
   .pub-menu {
     position: absolute; bottom: calc(100% + 8px); right: 0; min-width: 100%;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: 0 8px 28px rgba(0,0,0,.18); overflow: hidden; z-index: 8;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 13px;
+    box-shadow: 0 10px 30px rgba(24,32,43,.12); overflow: hidden; z-index: 8;
   }
   .pub-menu button {
     display: block; width: 100%; text-align: left; padding: 11px 16px;
@@ -165,12 +172,12 @@
   .pub-menu button:hover { background: var(--bg); }
   .pub-menu button + button { border-top: 1px solid var(--line-soft); }
   .btn {
-    padding: 9px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600;
+    padding: 10px 16px; border-radius: 11px; font-size: 13.5px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    transition: background .12s;
+    transition: filter .12s, background .12s;
   }
-  .btn.primary { background: var(--accent); color: var(--accent-ink); }
-  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.primary { background: var(--grad); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.07); }
   .btn.ghost { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
   .btn.ghost:hover { background: var(--bg); }
   .btn:disabled { opacity: .45; pointer-events: none; }
@@ -309,7 +316,7 @@
   .page { flex: 1; overflow-y: auto; padding: 22px 26px; max-width: 760px; }
   .page h2 { font-size: 19px; letter-spacing: -.01em; margin-bottom: 16px; }
   .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
     padding: 13px 16px; margin-bottom: 8px; box-shadow: var(--shadow-card);
     display: flex; align-items: center; gap: 14px;
   }
@@ -361,7 +368,7 @@
   #sheet.open { display: grid; }
   #sheet .panel {
     background: var(--surface); width: min(380px, calc(100vw - 32px));
-    border-radius: 14px; padding: 22px; box-shadow: 0 18px 50px rgba(0,0,0,.25);
+    border-radius: 18px; padding: 22px; box-shadow: 0 18px 50px rgba(0,0,0,.22);
   }
   #sheet h3 { font-size: 16px; margin-bottom: 14px; }
   #sheet input[type=datetime-local] {
@@ -383,10 +390,11 @@
     box-shadow: var(--shadow-card);
   }
   #login .logo-big {
-    width: 52px; height: 52px; border-radius: 13px; background: var(--accent);
-    color: var(--accent-ink); display: grid; place-items: center; font-weight: 800;
+    width: 54px; height: 54px; border-radius: 16px; background: var(--grad);
+    color: #fff; display: grid; place-items: center; font-weight: 800;
     font-size: 24px; margin: 0 auto 14px;
   }
+  #login .panel { border-radius: 18px; }
   #login h3 { font-size: 17px; margin-bottom: 10px; }
   #login p { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
   #login p code { background: var(--bg); padding: 1px 6px; border-radius: 5px; }
@@ -465,8 +473,8 @@
       display: grid; place-items: center; position: fixed; right: 14px;
       bottom: calc(148px + env(safe-area-inset-bottom)); z-index: 5;
       width: 50px; height: 50px; border-radius: 50%;
-      background: var(--accent); color: var(--accent-ink);
-      box-shadow: 0 6px 20px rgba(0,0,0,.28);
+      background: var(--grad); color: #fff;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25);
     }
     #previewFab:active { transform: scale(.94); }
 
