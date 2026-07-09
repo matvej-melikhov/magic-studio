@@ -690,6 +690,8 @@
       background: var(--surface);
       -webkit-backdrop-filter: none; backdrop-filter: none;
     }
+    /* home-индикатор — в системной зоне вне вьюпорта, запас не нужен */
+    #sidebar { padding-bottom: 0; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
