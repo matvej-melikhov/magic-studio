@@ -219,7 +219,7 @@
   }
   .bubble .meta svg { opacity: .8; }
   .bubble > .content > :first-child { margin-top: 2px; }
-  .bubble p { margin: 0 0 2px; }
+  .bubble p { margin: 0 0 8px; }
   /* Заголовки как в iOS-клиенте: антиква New York, обычный вес */
   .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 {
     /* отступ после заголовка ~1em его размера, как в iOS-рендере */
@@ -233,7 +233,7 @@
   .bubble h5 { font-size: 16px; line-height: 21px; }
   .bubble h6 { font-size: 14.5px; line-height: 19px; }
   .bubble blockquote {
-    margin: 2px 0 4px; padding: 2px 0 2px 14px; position: relative;
+    margin: 2px 0 12px; padding: 2px 0 2px 14px; position: relative;
     font-style: italic;
   }
   .bubble blockquote::before {
@@ -242,15 +242,15 @@
   }
   .bubble blockquote .cite { font-weight: 600; }
   .bubble aside {
-    margin: 2px 0 4px; padding: 12px 8px; text-align: center;
+    margin: 2px 0 14px; padding: 12px 8px; text-align: center;
     font-style: italic; font-weight: 600; font-size: 15.5px; color: var(--bubble-ink);
     border-top: 1px solid var(--tg-border); border-bottom: 1px solid var(--tg-border);
   }
   .bubble aside cite { font-weight: 400; color: var(--tg-sub); font-style: italic; }
-  .bubble ul, .bubble ol { margin: 0 0 4px; padding-left: 28px; }
+  .bubble ul, .bubble ol { margin: 0 0 14px; padding-left: 34px; }
   .bubble li { margin: 0 0 9px; }
   /* Чекбоксы как в iOS: крупные скруглённые, синяя заливка у отмеченных */
-  .bubble li.task { list-style: none; margin-left: -24px; display: flex; align-items: center; gap: 12px; }
+  .bubble li.task { list-style: none; margin-left: -22px; display: flex; align-items: center; gap: 12px; }
   .bubble li.task input {
     appearance: none; -webkit-appearance: none; width: 22px; height: 22px;
     border: 2px solid var(--tg-link); border-radius: 7px; margin: 0;
@@ -267,12 +267,12 @@
   .bubble pre code { font-size: 14px; line-height: 20px; }
   /* Код-блок во всю ширину пузыря, как в iOS */
   .bubble pre {
-    margin: 2px -12px 4px; padding: 12px; border-radius: 0;
+    margin: 4px -12px 14px; padding: 12px; border-radius: 0;
     background: color-mix(in srgb, var(--tg-code-bg) 80%, transparent);
     overflow-x: auto;
   }
   .bubble pre code { padding: 0; background: none; }
-  .bubble hr { border: none; border-top: 1px solid var(--tg-border); width: 46%; margin: 12px auto 14px; }
+  .bubble hr { border: none; border-top: 1px solid var(--tg-border); width: 46%; margin: 14px auto 16px; }
   .bubble mark { background: #FDE68A; color: #000; border-radius: 2px; padding: 0 1px; }
   .bubble .spoiler {
     border-radius: 4px; cursor: pointer; color: transparent; transition: all .15s;
@@ -286,17 +286,17 @@
   .bubble .spoiler.open { background: var(--tg-code-bg); color: inherit; }
   .bubble .katex { font-size: 1.05em; }
   .bubble .math-block {
-    display: block; text-align: left; margin: 2px 0 4px; padding: 4px 0;
+    display: block; text-align: left; margin: 2px 0 14px; padding: 4px 0;
     overflow-x: auto; font-size: 15px;
   }
   .bubble .math-block .katex-display { text-align: left; margin: 0; }
   .bubble .math-block .katex-display > .katex { text-align: left; }
   .bubble img { max-width: calc(100% + 24px); margin: 0 -12px; display: block; }
-  .bubble figure { margin: 0 0 4px; }
+  .bubble figure { margin: 0 0 14px; }
   .bubble figure:first-child img { border-radius: 12px 12px 0 0; margin-top: -7px; }
   .bubble figcaption { font-size: 13px; color: var(--tg-sub); text-align: left; margin: 8px 0 2px; }
   .bubble table {
-    border-collapse: separate; border-spacing: 0; margin: 2px 0 4px;
+    border-collapse: separate; border-spacing: 0; margin: 2px 0 14px;
     font-size: 14px; line-height: 19px; width: 100%;
     border: 1px solid var(--tg-border); border-radius: 8px; overflow: hidden;
     table-layout: fixed;
@@ -308,11 +308,13 @@
   .bubble tr > :last-child { border-right: none; }
   .bubble tr:last-child > td { border-bottom: none; }
   .bubble th { background: var(--tg-code-bg); font-weight: 400; }
-  .bubble details { margin: 2px 0 10px; }
+  .bubble details {
+    margin: 2px 0 14px; border-bottom: 1px solid var(--tg-border);
+    padding-bottom: 10px;
+  }
   .bubble summary {
     font-weight: 400; cursor: pointer; list-style: none; display: flex;
-    align-items: center; gap: 9px; padding: 4px 0 10px;
-    border-bottom: 1px solid var(--tg-border);
+    align-items: center; gap: 9px; padding: 4px 0 0;
   }
   .bubble summary::-webkit-details-marker { display: none; }
   .bubble summary::before {
@@ -320,9 +322,9 @@
     transform: rotate(90deg); transition: transform .15s;
   }
   .bubble details[open] summary::before { transform: rotate(-90deg); }
-  .bubble details .dbody { padding: 10px 0 0; }
+  .bubble details .dbody { padding: 12px 0 0; }
   .bubble details .dbody img, .bubble details .dbody video { max-width: 100%; margin: 6px 0; }
-  .bubble footer { margin: 2px 0 10px; font-size: 15px; color: var(--tg-sub); }
+  .bubble footer { margin: 2px 0 14px; font-size: 15px; color: var(--tg-sub); }
   .bubble a { color: var(--tg-link); text-decoration: none; }
   .bubble a:hover { text-decoration: underline; }
   .bubble sup a { font-size: 11px; }
@@ -332,7 +334,7 @@
     display: block; text-align: right; font-weight: 600; font-style: normal; margin-top: 2px;
   }
   .bubble aside cite { display: block; font-size: 13px; margin-top: 4px; }
-  .bubble .tgtime { color: var(--tg-link); border-bottom: 1px dashed var(--tg-link); cursor: default; }
+  .bubble .tgtime { color: inherit; }
   .bubble .lang {
     display: block; font-size: 10.5px; color: var(--tg-sub);
     text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px;
