@@ -681,6 +681,16 @@
                calc(18px + 62px + env(safe-area-inset-bottom));
     }
   }
+  /* С домашнего экрана iOS резервирует системные полосы сверху и снизу
+     (вьюпорт меньше экрана) и красит их цветом канвы — белым. Полу-
+     прозрачное стекло рядом с ними даёт видимый шов, поэтому в standalone
+     панели непрозрачные: сливаются с полосами в единые плоскости */
+  @media all and (display-mode: standalone) and (max-width: 900px) {
+    #mtop, #sidebar {
+      background: var(--surface);
+      -webkit-backdrop-filter: none; backdrop-filter: none;
+    }
+  }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
