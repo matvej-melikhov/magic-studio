@@ -131,10 +131,20 @@
   .editor-pane { border-right: 1px solid var(--line); background: var(--surface); }
 
   .toolbar {
-    display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 20px; flex: 0 0 auto;
-    background: var(--bg); border-top: 1px solid var(--line-soft);
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 48px 10px 20px;
+    flex: 0 0 auto; background: var(--bg); border-top: 1px solid var(--line-soft);
     border-bottom: 1px solid var(--line-soft); margin-bottom: 4px;
+    position: relative; max-height: 51px; overflow: hidden;
   }
+  .toolbar.open { max-height: none; }
+  #toolsToggle {
+    position: absolute; top: 10px; right: 14px; width: 30px; height: 31px;
+    display: grid; place-items: center; color: var(--muted);
+    border: 1px solid var(--line-soft); border-radius: var(--r-pill);
+    background: var(--surface);
+  }
+  #toolsToggle:hover { color: var(--accent); }
+  .toolbar.open #toolsToggle svg { transform: rotate(180deg); }
   .toolbar .group {
     display: flex; border: 1px solid var(--line-soft); border-radius: var(--r-pill); overflow: hidden;
     background: var(--surface);
@@ -604,8 +614,9 @@
     /* Панель инструментов — одна строка с прокруткой */
     .toolbar {
       flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none; padding: 0 14px 10px;
+      scrollbar-width: none; padding: 10px 14px; max-height: none;
     }
+    #toolsToggle { display: none; }
     .toolbar::-webkit-scrollbar { display: none; }
     .toolbar .group { flex: 0 0 auto; }
     .toolbar .group button { padding: 9px 12px; font-size: 14px; }
@@ -751,6 +762,9 @@
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 14s4.8-4.2 4.8-8A4.8 4.8 0 0 0 3.2 6c0 3.8 4.8 8 4.8 8z" stroke-linejoin="round"/><circle cx="8" cy="6" r="1.6"/></svg>
             </button>
           </span>
+          <button id="toolsToggle" title="Показать все инструменты">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l5 5 5-5"/></svg>
+          </button>
         </div>
         <textarea id="md" placeholder="# Заголовок поста&#10;&#10;Начните писать — предпросмотр обновляется сам…" autocapitalize="sentences" spellcheck="true"></textarea>
         <div class="editor-foot">
@@ -1017,6 +1031,14 @@ function insertBlock(tpl, ph) {
   localStorage.setItem('draft', md.value);
   renderPreview();
 }
+
+/* Свёрнутая панель: видна первая строка, остальное по стрелке */
+const toolbarEl = document.querySelector('.toolbar');
+if (localStorage.getItem('toolsOpen') === '1') toolbarEl.classList.add('open');
+$('toolsToggle').addEventListener('click', () => {
+  toolbarEl.classList.toggle('open');
+  localStorage.setItem('toolsOpen', toolbarEl.classList.contains('open') ? '1' : '0');
+});
 
 document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener('click', () => {
   if (btn.dataset.wrap) insert(btn.dataset.wrap, btn.dataset.wrap, 'текст');
