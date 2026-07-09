@@ -1,0 +1,19 @@
+[Unit]
+Description=Студия постов — веб-редактор (server.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/markdown-bot
+ExecStart=/opt/markdown-bot/venv/bin/python3 server.py
+Restart=always
+RestartSec=5
+Environment=PORT=80
+# бинд на 80 порт без root
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+User=markdown
+Group=markdown
+
+[Install]
+WantedBy=multi-user.target
