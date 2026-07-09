@@ -1114,20 +1114,19 @@ $('mapBtn').addEventListener('click', () => {
 });
 
 /* ── Выпадающие меню тулбара ──
-   На мобильных тулбар скроллится по горизонтали (overflow-x: auto) и
-   обрезал бы absolute-меню — там позиционируем их fixed по кнопке */
+   Меню живут в body, а не в тулбаре: скролл-контейнер (overflow-x: auto,
+   на iOS ещё и -webkit-overflow-scrolling) обрезает выпадающие элементы,
+   включая position: fixed. Позиция считается от кнопки при открытии */
+document.body.appendChild($('mediaMenu'));
+document.body.appendChild($('aiMenu'));
 function toggleDropdown(menu, btn) {
   if (!menu.hidden) { menu.hidden = true; return; }
   menu.hidden = false;
-  if (window.matchMedia('(max-width: 900px)').matches) {
-    const r = btn.getBoundingClientRect();
-    menu.style.position = 'fixed';
-    menu.style.top = (r.bottom + 6) + 'px';
-    menu.style.left = Math.max(8, Math.min(r.left,
-      window.innerWidth - menu.offsetWidth - 8)) + 'px';
-  } else {
-    menu.style.position = menu.style.top = menu.style.left = '';
-  }
+  const r = btn.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = (r.bottom + 6) + 'px';
+  menu.style.left = Math.max(8, Math.min(r.left,
+    window.innerWidth - menu.offsetWidth - 8)) + 'px';
 }
 
 /* ── Медиа: одна кнопка с меню «файл / по ссылке» ── */
@@ -1136,7 +1135,7 @@ $('mediaBtn').addEventListener('click', () => {
   $('aiMenu').hidden = true;
 });
 document.addEventListener('click', e => {
-  if (!e.target.closest('.media-wrap')) $('mediaMenu').hidden = true;
+  if (!e.target.closest('#mediaMenu, #mediaBtn')) $('mediaMenu').hidden = true;
 });
 $('imgBtn').addEventListener('click', () => { $('mediaMenu').hidden = true; $('imgInput').click(); });
 $('imgInput').addEventListener('change', async () => {
@@ -1174,7 +1173,7 @@ $('aiBtn').addEventListener('click', () => {
   $('mediaMenu').hidden = true;
 });
 document.addEventListener('click', e => {
-  if (!e.target.closest('.ai-group')) $('aiMenu').hidden = true;
+  if (!e.target.closest('#aiMenu, #aiBtn')) $('aiMenu').hidden = true;
 });
 
 async function runAI(action, text, selStart, selEnd) {
