@@ -977,6 +977,32 @@ function logout() {
 $('mtopLogout').addEventListener('click', () => {
   if (confirm('Выйти из аккаунта?')) logout();
 });
+
+/* Диагностика вьюпорта: 5 тапов по логотипу в мобильной шапке */
+let dbgTaps = 0, dbgTimer;
+document.querySelector('#mtop .logo').addEventListener('click', () => {
+  clearTimeout(dbgTimer);
+  dbgTimer = setTimeout(() => dbgTaps = 0, 2000);
+  if (++dbgTaps < 5) return;
+  dbgTaps = 0;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;' +
+    'padding:env(safe-area-inset-top) env(safe-area-inset-right) ' +
+    'env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const nav = $('sidebar').getBoundingClientRect();
+  alert([
+    'standalone: ' + matchMedia('(display-mode: standalone)').matches,
+    'inner: ' + innerWidth + 'x' + innerHeight,
+    'screen: ' + screen.width + 'x' + screen.height,
+    'visual: ' + (visualViewport ? Math.round(visualViewport.height) : '—'),
+    'inset top/bottom: ' + cs.paddingTop + ' / ' + cs.paddingBottom,
+    'nav rect: top ' + Math.round(nav.top) + ', bottom ' + Math.round(nav.bottom),
+    'dvh(app): ' + Math.round(document.getElementById('app').getBoundingClientRect().height),
+  ].join('\n'));
+  probe.remove();
+});
 function finishLogin(token) {
   stopLoginPoll();
   localStorage.setItem('session', token);
