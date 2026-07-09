@@ -387,14 +387,26 @@
   .bubble .collage img { width: 100%; height: 150px; object-fit: cover; margin: 0; }
   .bubble .collage.n1 img { grid-column: 1 / -1; height: 260px; }
   .bubble .collage.n3 img:first-child { grid-column: 1 / -1; height: 230px; }
+  .bubble .slidewrap { position: relative; margin: 0 -12px 14px; }
   .bubble .slideshow {
-    display: flex; gap: 4px; overflow-x: auto; margin: 0 -12px 8px;
-    scroll-snap-type: x mandatory;
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+    scrollbar-width: none; margin: 0;
   }
+  .bubble .slideshow::-webkit-scrollbar { display: none; }
   .bubble .slideshow img {
-    width: 82%; flex: 0 0 auto; height: 170px; object-fit: cover; margin: 0;
-    scroll-snap-align: center;
+    width: 100%; flex: 0 0 100%; height: 260px; object-fit: cover; margin: 0;
+    scroll-snap-align: start;
   }
+  .bubble .sdots {
+    position: absolute; left: 0; right: 0; bottom: 11px;
+    display: flex; gap: 6px; justify-content: center; pointer-events: auto;
+  }
+  .bubble .sdots span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,.55); cursor: pointer;
+    box-shadow: 0 0 3px rgba(0,0,0,.25);
+  }
+  .bubble .sdots span.on { background: #fff; }
   .bubble .footnotes { margin-top: 12px; font-size: 15px; color: var(--tg-sub); }
   .bubble .footnotes div { margin: 3px 0; }
   .bubble .footnotes .back { opacity: .7; }
@@ -1075,6 +1087,16 @@ function attachMedia(root) {
       else { a.pause(); btn.innerHTML = PLAY_ICON; }
     });
   });
+  root.querySelectorAll('.slidewrap').forEach(w => {
+    const ss = w.querySelector('.slideshow');
+    const dots = [...w.querySelectorAll('.sdots span')];
+    ss.addEventListener('scroll', () => {
+      const idx = Math.round(ss.scrollLeft / ss.clientWidth);
+      dots.forEach((d, n) => d.classList.toggle('on', n === idx));
+    }, {passive: true});
+    dots.forEach((d, n) => d.addEventListener('click', () =>
+      ss.scrollTo({left: n * ss.clientWidth, behavior: 'smooth'})));
+  });
   root.querySelectorAll('.vwrap').forEach(w => {
     const v = w.querySelector('video'), p = w.querySelector('.vplay');
     p.addEventListener('click', () => {
@@ -1185,9 +1207,16 @@ function buildContentHtml(src) {
         i++;
       }
       i++;
-      const nclass = kind === 'collage' ? ` n${Math.min(urls.length, 4)}` : '';
-      out.push(`<div class="${kind}${nclass}">` +
-               urls.map(u => `<img src="${esc(u)}" loading="lazy">`).join('') + '</div>');
+      if (kind === 'slideshow') {
+        out.push('<div class="slidewrap"><div class="slideshow">' +
+                 urls.map(u => `<img src="${esc(u)}" loading="lazy">`).join('') +
+                 '</div><div class="sdots">' +
+                 urls.map((_, n) => `<span${n ? '' : ' class="on"'}></span>`).join('') +
+                 '</div></div>');
+      } else {
+        out.push(`<div class="collage n${Math.min(urls.length, 4)}">` +
+                 urls.map(u => `<img src="${esc(u)}" loading="lazy">`).join('') + '</div>');
+      }
       continue;
     }
     if (line.includes('|') && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i+1])) {
