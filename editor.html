@@ -620,7 +620,7 @@
       flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
       scrollbar-width: none; padding: 10px 14px;
     }
-    .toolbar:not(.open) .group:nth-child(n+3) { display: flex; }
+    .toolbar:not(.open) .group:nth-child(n+3):not(.ai-group) { display: flex; }
     #toolsToggle { display: none; }
     .toolbar::-webkit-scrollbar { display: none; }
     .toolbar .group { flex: 0 0 auto; }
@@ -1113,9 +1113,27 @@ $('mapBtn').addEventListener('click', () => {
   insertBlock(`<tg-map lat="${lat}" long="${lon}" zoom="${zoom && !isNaN(+zoom) ? zoom : 14}"/>`, '');
 });
 
+/* ── Выпадающие меню тулбара ──
+   На мобильных тулбар скроллится по горизонтали (overflow-x: auto) и
+   обрезал бы absolute-меню — там позиционируем их fixed по кнопке */
+function toggleDropdown(menu, btn) {
+  if (!menu.hidden) { menu.hidden = true; return; }
+  menu.hidden = false;
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    const r = btn.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = (r.bottom + 6) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left,
+      window.innerWidth - menu.offsetWidth - 8)) + 'px';
+  } else {
+    menu.style.position = menu.style.top = menu.style.left = '';
+  }
+}
+
 /* ── Медиа: одна кнопка с меню «файл / по ссылке» ── */
 $('mediaBtn').addEventListener('click', () => {
-  $('mediaMenu').hidden = !$('mediaMenu').hidden;
+  toggleDropdown($('mediaMenu'), $('mediaBtn'));
+  $('aiMenu').hidden = true;
 });
 document.addEventListener('click', e => {
   if (!e.target.closest('.media-wrap')) $('mediaMenu').hidden = true;
@@ -1152,7 +1170,7 @@ $('imgUrlBtn').addEventListener('click', () => {
 let aiBusy = false;
 
 $('aiBtn').addEventListener('click', () => {
-  $('aiMenu').hidden = !$('aiMenu').hidden;
+  toggleDropdown($('aiMenu'), $('aiBtn'));
   $('mediaMenu').hidden = true;
 });
 document.addEventListener('click', e => {
