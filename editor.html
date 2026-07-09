@@ -247,10 +247,18 @@
     border-top: 1px solid var(--tg-border); border-bottom: 1px solid var(--tg-border);
   }
   .bubble aside cite { font-weight: 400; color: var(--tg-sub); font-style: italic; }
-  .bubble ul, .bubble ol { margin: 0 0 14px; padding-left: 20px; }
-  .bubble li { margin: 0 0 9px; }
+  /* Маркеры рисуем сами, чтобы они стояли ровно у левого края, как в TG */
+  .bubble ul, .bubble ol { margin: 0 0 14px; padding: 0; counter-reset: oli; }
+  .bubble li { margin: 0 0 9px; list-style: none; position: relative; padding-left: 22px; }
+  .bubble ul > li:not(.task)::before {
+    content: "•"; position: absolute; left: 1px; font-weight: 700;
+  }
+  .bubble ol > li { counter-increment: oli; padding-left: 26px; }
+  .bubble ol > li::before {
+    content: counter(oli) "."; position: absolute; left: 0;
+  }
   /* Чекбоксы как в iOS: крупные скруглённые, синяя заливка у отмеченных */
-  .bubble li.task { list-style: none; margin-left: -20px; display: flex; align-items: center; gap: 12px; }
+  .bubble li.task { padding-left: 0; display: flex; align-items: center; gap: 12px; }
   .bubble li.task input {
     appearance: none; -webkit-appearance: none; width: 22px; height: 22px;
     border: 2px solid var(--tg-link); border-radius: 7px; margin: 0;
