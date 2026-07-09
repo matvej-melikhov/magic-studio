@@ -142,6 +142,7 @@
   .toolbar .group button:last-child { border-right: none; }
   .toolbar .group button:hover { background: var(--bg); color: var(--ink); }
   .toolbar .group button b { font-weight: 800; }
+  .toolbar .group button svg { display: block; }
   .toolbar .group button i { font-family: Georgia, serif; }
 
   #md {
@@ -659,34 +660,62 @@
             <button data-before="&lt;sub&gt;" data-after="&lt;/sub&gt;" title="Подстрочный">x₂</button>
             <button data-before="&lt;sup&gt;" data-after="&lt;/sup&gt;" title="Надстрочный">x²</button>
             <button data-wrap="==" title="Маркер"><mark style="background:#FDE68A;border-radius:2px;padding:0 3px;color:#1C242C">M</mark></button>
-            <button data-wrap="||" title="Спойлер">▒</button>
+            <button data-wrap="||" title="Спойлер — скрытый текст">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.8 8c2.2-3.2 10.2-3.2 12.4 0-2.2 3.2-10.2 3.2-12.4 0z"/><circle cx="8" cy="8" r="1.7"/><line x1="3" y1="13.2" x2="13" y2="2.8"/></svg>
+            </button>
             <button data-wrap="`" title="Код в строке">&lt;/&gt;</button>
           </span>
           <span class="group">
-            <button data-block="> " title="Цитата">❝</button>
-            <button data-snippet="&#10;&lt;aside&gt;Выносная цитата&lt;cite&gt;Автор&lt;/cite&gt;&lt;/aside&gt;&#10;" title="Выносная цитата">❝❞</button>
-            <button data-block="- " title="Маркированный список">•—</button>
-            <button data-block="1. " title="Нумерованный список">1.</button>
-            <button data-block="- [ ] " title="Чекбокс">☑</button>
-            <button data-snippet="&#10;---&#10;" title="Разделитель">—</button>
-            <button id="footnoteBtn" title="Сноска">[¹]</button>
-            <button data-snippet="&#10;&lt;footer&gt;Подпись поста&lt;/footer&gt;&#10;" title="Футер — мелкий текст внизу">ftr</button>
+            <button data-block="> " title="Цитата">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M2 3.5h1.8v9H2zM6.5 4.5h7.5v1.6H6.5zM6.5 7.2h7.5v1.6H6.5zM6.5 9.9h5v1.6h-5z"/></svg>
+            </button>
+            <button data-snippet="&#10;&lt;aside&gt;Выносная цитата&lt;cite&gt;Автор&lt;/cite&gt;&lt;/aside&gt;&#10;" title="Выносная цитата с автором">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M1.5 1.8h13v1.4h-13zM1.5 12.8h13v1.4h-13z"/><text x="8" y="10.6" text-anchor="middle" font-size="9" font-family="Georgia,serif">❝</text></svg>
+            </button>
+            <button data-block="- " title="Маркированный список">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><circle cx="3" cy="4.5" r="1.6"/><rect x="6.5" y="3.7" width="8" height="1.6"/><circle cx="3" cy="11.5" r="1.6"/><rect x="6.5" y="10.7" width="8" height="1.6"/></svg>
+            </button>
+            <button data-block="1. " title="Нумерованный список">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><text x="1.2" y="6.6" font-size="6.6" font-weight="700">1.</text><rect x="7" y="3.7" width="7.5" height="1.6"/><text x="1.2" y="13.6" font-size="6.6" font-weight="700">2.</text><rect x="7" y="10.7" width="7.5" height="1.6"/></svg>
+            </button>
+            <button data-block="- [ ] " title="Чекбокс">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="7.5" height="7.5" rx="1.8"/><path d="M3.8 7.9l1.6 1.6 2.7-3.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="11.5" y1="7.8" x2="15" y2="7.8" stroke-linecap="round"/></svg>
+            </button>
+            <button data-snippet="&#10;---&#10;" title="Разделитель">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><rect x="4" y="7.2" width="8" height="1.6" rx=".8"/><circle cx="1.8" cy="8" r=".9"/><circle cx="14.2" cy="8" r=".9"/></svg>
+            </button>
+            <button id="footnoteBtn" title="Сноска">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><text x="2" y="13" font-size="11" font-family="Georgia,serif">a</text><text x="9.5" y="7.5" font-size="7" font-weight="700">1</text></svg>
+            </button>
+            <button data-snippet="&#10;&lt;footer&gt;Подпись поста&lt;/footer&gt;&#10;" title="Футер — мелкий текст внизу поста">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.8"/><rect x="4" y="10" width="8" height="1.6" rx=".8" fill="currentColor" stroke="none"/></svg>
+            </button>
             <button id="anchorBtn" title="Якорь + ссылка на него">⚓</button>
           </span>
           <span class="group">
-            <button data-wrap="$" title="Формула в строке">ƒ</button>
+            <button data-wrap="$" title="Формула в строке"><i style="font-family:Georgia,serif">ƒ</i></button>
             <button data-snippet="&#10;$$&#10;E = mc^2&#10;$$&#10;" title="Формула блоком">∑</button>
-            <button data-snippet="&#10;```python&#10;print('код')&#10;```&#10;" title="Блок кода с языком">{ }</button>
-            <button data-snippet="&#10;| Столбец | Столбец |&#10;|:--------|--------:|&#10;| ячейка  | ячейка  |&#10;" title="Таблица">⊞</button>
-            <button data-snippet="&#10;&lt;details&gt;&lt;summary&gt;Заголовок&lt;/summary&gt;&#10;&#10;Скрытый текст&#10;&#10;&lt;/details&gt;&#10;" title="Сворачиваемый блок">▸</button>
+            <button data-snippet="&#10;```python&#10;print('код')&#10;```&#10;" title="Блок кода с языком">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8"/><path d="M6.2 6.2 4.4 8l1.8 1.8M9.8 6.2 11.6 8 9.8 9.8"/></svg>
+            </button>
+            <button data-snippet="&#10;| Столбец | Столбец |&#10;|:--------|--------:|&#10;| ячейка  | ячейка  |&#10;" title="Таблица">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><line x1="8" y1="3" x2="8" y2="13"/><line x1="1.5" y1="8" x2="14.5" y2="8"/></svg>
+            </button>
+            <button data-snippet="&#10;&lt;details&gt;&lt;summary&gt;Заголовок&lt;/summary&gt;&#10;&#10;Скрытый текст&#10;&#10;&lt;/details&gt;&#10;" title="Сворачиваемый блок">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5 8 10l5-4.5"/><line x1="3" y1="13" x2="13" y2="13"/></svg>
+            </button>
             <button id="timeBtn" title="Дата-время: покажется в часовом поясе читателя">🕐</button>
           </span>
           <span class="group">
             <button data-snippet="[текст](https://)" title="Ссылка">🔗</button>
             <button id="imgBtn" title="Загрузить медиа: фото, видео, аудио, гиф">📷</button>
             <button id="imgUrlBtn" title="Медиа по ссылке: фото, видео, аудио, гиф, голосовое">🖼</button>
-            <button data-snippet="&#10;&lt;tg-collage&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-collage&gt;&#10;" title="Коллаж из медиа">⊟⊟</button>
-            <button data-snippet="&#10;&lt;tg-slideshow&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-slideshow&gt;&#10;" title="Слайдшоу">▷▷</button>
+            <button data-snippet="&#10;&lt;tg-collage&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-collage&gt;&#10;" title="Коллаж из медиа">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><rect x="1.5" y="2.5" width="7.5" height="5" rx="1"/><rect x="10.5" y="2.5" width="4" height="5" rx="1"/><rect x="1.5" y="9" width="4" height="4.5" rx="1"/><rect x="7" y="9" width="7.5" height="4.5" rx="1"/></svg>
+            </button>
+            <button data-snippet="&#10;&lt;tg-slideshow&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-slideshow&gt;&#10;" title="Слайдшоу">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3" width="9" height="8" rx="1.2"/><line x1="1" y1="5" x2="1" y2="9"/><line x1="15" y1="5" x2="15" y2="9"/><circle cx="6.5" cy="13.8" r=".9" fill="currentColor" stroke="none"/><circle cx="9.5" cy="13.8" r=".9" fill="currentColor" stroke="none" opacity=".45"/></svg>
+            </button>
             <button id="mapBtn" title="Карта по координатам">📍</button>
           </span>
         </div>
