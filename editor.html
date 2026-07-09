@@ -613,7 +613,9 @@
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
       flex-direction: row; align-items: stretch; height: auto;
       border-right: none; border-top: 1px solid var(--line);
-      padding: 0 0 env(safe-area-inset-bottom);
+      /* стандартный inset (34px) оставляет слишком много пустого стекла
+         под кнопками — прижимаем меню ниже, оставляя зазор над индикатором */
+      padding: 0 0 max(calc(env(safe-area-inset-bottom) - 16px), 0px);
     }
     .brand, #sidebar .foot, #sideToggle { display: none; }
     #mtop {
