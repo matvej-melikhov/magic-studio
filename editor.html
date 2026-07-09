@@ -248,7 +248,7 @@
   }
   .bubble aside cite { font-weight: 400; color: var(--tg-sub); font-style: italic; }
   .bubble ul, .bubble ol { margin: 0 0 4px; padding-left: 28px; }
-  .bubble li { margin: 0 0 3px; }
+  .bubble li { margin: 0 0 9px; }
   /* Чекбоксы как в iOS: крупные скруглённые, синяя заливка у отмеченных */
   .bubble li.task { list-style: none; margin-left: -24px; display: flex; align-items: center; gap: 12px; }
   .bubble li.task input {
@@ -272,7 +272,7 @@
     overflow-x: auto;
   }
   .bubble pre code { padding: 0; background: none; }
-  .bubble hr { border: none; border-top: 1px solid var(--tg-border); margin: 2px 0 4px; }
+  .bubble hr { border: none; border-top: 1px solid var(--tg-border); width: 46%; margin: 12px auto 14px; }
   .bubble mark { background: #FDE68A; color: #000; border-radius: 2px; padding: 0 1px; }
   .bubble .spoiler {
     border-radius: 4px; cursor: pointer; color: transparent; transition: all .15s;
@@ -308,17 +308,21 @@
   .bubble tr > :last-child { border-right: none; }
   .bubble tr:last-child > td { border-bottom: none; }
   .bubble th { background: var(--tg-code-bg); font-weight: 400; }
-  .bubble details {
-    margin: 0 0 4px; border: 1px solid var(--tg-border); border-radius: 6px; overflow: hidden;
-  }
+  .bubble details { margin: 2px 0 10px; }
   .bubble summary {
-    font-weight: 400; cursor: pointer; background: var(--tg-code-bg); padding: 12px 8px;
+    font-weight: 400; cursor: pointer; list-style: none; display: flex;
+    align-items: center; gap: 9px; padding: 4px 0 10px;
+    border-bottom: 1px solid var(--tg-border);
   }
-  .bubble details .dbody { padding: 12px 10px 4px; }
+  .bubble summary::-webkit-details-marker { display: none; }
+  .bubble summary::before {
+    content: "❯"; color: var(--tg-sub); font-size: 12px;
+    transform: rotate(90deg); transition: transform .15s;
+  }
+  .bubble details[open] summary::before { transform: rotate(-90deg); }
+  .bubble details .dbody { padding: 10px 0 0; }
   .bubble details .dbody img, .bubble details .dbody video { max-width: 100%; margin: 6px 0; }
-  .bubble footer {
-    margin-top: 8px; font-size: 12px; line-height: 18px; color: var(--tg-sub);
-  }
+  .bubble footer { margin: 2px 0 10px; font-size: 15px; color: var(--tg-sub); }
   .bubble a { color: var(--tg-link); text-decoration: none; }
   .bubble a:hover { text-decoration: underline; }
   .bubble sup a { font-size: 11px; }
@@ -358,12 +362,9 @@
     width: 82%; flex: 0 0 auto; height: 170px; object-fit: cover; margin: 0;
     scroll-snap-align: center;
   }
-  .bubble .footnotes {
-    border-top: 1px solid var(--tg-border); margin-top: 10px; padding-top: 6px;
-    font-size: 12.5px; color: var(--tg-sub);
-  }
+  .bubble .footnotes { margin-top: 12px; font-size: 15px; color: var(--tg-sub); }
   .bubble .footnotes div { margin: 3px 0; }
-  .bubble .footnotes sup { color: var(--tg-link); }
+  .bubble .footnotes .back { opacity: .7; }
 
   /* ═══ Списки ═══ */
   .page { flex: 1; overflow-y: auto; padding: 22px 26px; max-width: 760px; }
@@ -982,7 +983,12 @@ function inline(text) {
   h = h.replace(/&lt;a name=&quot;[^&]*&quot;&gt;&lt;\/a&gt;/gi, '');
   // спец-сущности: кастомные эмодзи и дата-время
   h = h.replace(/!\[([^\]]*)\]\(tg:\/\/emoji[^)]*\)/g, '$1');
-  h = h.replace(/!\[([^\]]*)\]\(tg:\/\/time[^)]*\)/g, '<span class="tgtime">$1</span>');
+  h = h.replace(/!\[[^\]]*\]\(tg:\/\/time\?unix=(\d+)[^)]*\)/g, (_, ts) => {
+    const d = new Date(+ts * 1000);
+    return '<span class="tgtime">' +
+      d.toLocaleDateString('ru-RU', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'}) +
+      ' в ' + d.toLocaleTimeString('ru-RU') + '</span>';
+  });
   h = h.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
   h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" onclick="return false">$1</a>');
   h = h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
@@ -1038,8 +1044,7 @@ function buildContentHtml(src) {
       while (i < lines.length && !lines[i].startsWith('```')) buf.push(lines[i++]);
       i++;
       if (lang === 'math') out.push('<span class="math-block">' + mathBlock(buf.join(' ')) + '</span>');
-      else out.push('<pre>' + (lang ? `<span class="lang">${esc(lang)}</span>` : '') +
-                    '<code>' + esc(buf.join('\n')) + '</code></pre>');
+      else out.push('<pre><code>' + esc(buf.join('\n')) + '</code></pre>');
       continue;
     }
     if (line.startsWith('$$')) {
@@ -1086,14 +1091,14 @@ function buildContentHtml(src) {
       listTag = 'ol'; listBuf.push('<li>' + inline(m[1]) + '</li>'); i++; continue;
     }
     if ((m = line.match(/^!\[[^\]]*\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/)) &&
-        !line.startsWith('![](tg://')) {
+        !m[1].startsWith('tg://')) {
       flushList();
       out.push(mediaBlock(m[1], m[2]));
       i++; continue;
     }
     if ((m = line.match(/^\[\^([\w-]+)\]:\s+(.*)/))) {
       flushList();
-      footnotes.push(`<div><sup>${esc(m[1])}</sup> ${inline(m[2])}</div>`);
+      footnotes.push(`<div>${esc(m[1])}. ${inline(m[2])} <span class="back">↩</span></div>`);
       i++; continue;
     }
     if ((m = line.match(/^<tg-map\s+lat="([^"]+)"\s+long="([^"]+)"[^>]*\/?>/i))) {
@@ -1121,22 +1126,30 @@ function buildContentHtml(src) {
       flushList();
       const cells = r => r.split('|').map(c => c.trim()).filter((c, idx, arr) =>
         !(idx === 0 && c === '') && !(idx === arr.length - 1 && c === ''));
-      let html = '<table><tr>' + cells(line).map(c => `<th>${inline(c)}</th>`).join('') + '</tr>';
+      const aligns = cells(lines[i + 1]).map(c =>
+        /^:.*:$/.test(c) ? 'center' : /:$/.test(c) ? 'right' : 'left');
+      const st = idx => aligns[idx] && aligns[idx] !== 'left'
+        ? ` style="text-align:${aligns[idx]}"` : '';
+      let html = '<table><tr>' + cells(line).map((c, idx) =>
+        `<th${st(idx)}>${inline(c)}</th>`).join('') + '</tr>';
       i += 2;
       while (i < lines.length && lines[i].includes('|')) {
-        html += '<tr>' + cells(lines[i]).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>';
+        html += '<tr>' + cells(lines[i]).map((c, idx) =>
+          `<td${st(idx)}>${inline(c)}</td>`).join('') + '</tr>';
         i++;
       }
       out.push(html + '</table>');
       continue;
     }
-    if ((m = line.match(/^<details[^>]*><summary>(.*?)<\/summary>(.*)/i))) {
+    if ((m = line.match(/^<details([^>]*)><summary>(.*?)<\/summary>(.*)/i))) {
       flushList();
-      const buf = [m[2]]; i++;
+      const buf = [m[3]]; i++;
       while (i < lines.length && !/<\/details>/i.test(lines[i])) buf.push(lines[i++]);
       if (i < lines.length) { buf.push(lines[i].replace(/<\/details>.*/i, '')); i++; }
-      // тело details — полноценный rich-контент, парсим рекурсивно
-      out.push(`<details open><summary>${inline(m[1])}</summary>` +
+      // тело details — полноценный rich-контент, парсим рекурсивно;
+      // свёрнут по умолчанию, раскрыт только с атрибутом open — как в Telegram
+      const openAttr = /\bopen\b/i.test(m[1]) ? ' open' : '';
+      out.push(`<details${openAttr}><summary>${inline(m[2])}</summary>` +
                `<div class="dbody">${buildContentHtml(buf.join('\n'))}</div></details>`);
       continue;
     }
