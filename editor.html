@@ -687,7 +687,7 @@
             <button data-block="> " title="Цитата">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M2 3.5h1.8v9H2zM6.5 4.5h7.5v1.6H6.5zM6.5 7.2h7.5v1.6H6.5zM6.5 9.9h5v1.6h-5z"/></svg>
             </button>
-            <button data-snippet="&#10;&lt;aside&gt;Выносная цитата&lt;cite&gt;Автор&lt;/cite&gt;&lt;/aside&gt;&#10;" title="Выносная цитата с автором">
+            <button data-snippet="&lt;aside&gt;{sel}&lt;cite&gt;Автор&lt;/cite&gt;&lt;/aside&gt;" data-ph="Выносная цитата" title="Выносная цитата с автором">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M1.5 1.8h13v1.4h-13zM1.5 12.8h13v1.4h-13z"/><text x="8" y="10.6" text-anchor="middle" font-size="9" font-family="Georgia,serif">❝</text></svg>
             </button>
             <button data-block="- " title="Маркированный список">
@@ -699,13 +699,13 @@
             <button data-block="- [ ] " title="Чекбокс">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="7.5" height="7.5" rx="1.8"/><path d="M3.8 7.9l1.6 1.6 2.7-3.1" stroke-linecap="round" stroke-linejoin="round"/><line x1="11.5" y1="7.8" x2="15" y2="7.8" stroke-linecap="round"/></svg>
             </button>
-            <button data-snippet="&#10;---&#10;" title="Разделитель">
+            <button data-snippet="---" title="Разделитель">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><rect x="4" y="7.2" width="8" height="1.6" rx=".8"/><circle cx="1.8" cy="8" r=".9"/><circle cx="14.2" cy="8" r=".9"/></svg>
             </button>
             <button id="footnoteBtn" title="Сноска">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><text x="2" y="13" font-size="11" font-family="Georgia,serif">a</text><text x="9.5" y="7.5" font-size="7" font-weight="700">1</text></svg>
             </button>
-            <button data-snippet="&#10;&lt;footer&gt;Подпись поста&lt;/footer&gt;&#10;" title="Футер — мелкий текст внизу поста">
+            <button data-snippet="&lt;footer&gt;{sel}&lt;/footer&gt;" data-ph="Подпись поста" title="Футер — мелкий текст внизу поста">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.8"/><rect x="4" y="10" width="8" height="1.6" rx=".8" fill="currentColor" stroke="none"/></svg>
             </button>
             <button id="anchorBtn" title="Якорь + ссылка на него">
@@ -714,14 +714,14 @@
           </span>
           <span class="group">
             <button data-wrap="$" title="Формула в строке"><b>$</b></button>
-            <button data-snippet="&#10;$$&#10;E = mc^2&#10;$$&#10;" title="Формула блоком"><b>$$</b></button>
-            <button data-snippet="&#10;```python&#10;print('код')&#10;```&#10;" title="Блок кода с языком">
+            <button data-snippet="$$&#10;{sel}&#10;$$" data-ph="E = mc^2" title="Формула блоком"><b>$$</b></button>
+            <button data-snippet="```python&#10;{sel}&#10;```" data-ph="print('код')" title="Блок кода с языком">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8"/><path d="M6.2 6.2 4.4 8l1.8 1.8M9.8 6.2 11.6 8 9.8 9.8"/></svg>
             </button>
-            <button data-snippet="&#10;| Столбец | Столбец |&#10;|:--------|--------:|&#10;| ячейка  | ячейка  |&#10;" title="Таблица">
+            <button data-snippet="| Столбец | Столбец |&#10;|:--------|--------:|&#10;| ячейка  | ячейка  |" title="Таблица">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><line x1="8" y1="3" x2="8" y2="13"/><line x1="1.5" y1="8" x2="14.5" y2="8"/></svg>
             </button>
-            <button data-snippet="&#10;&lt;details&gt;&lt;summary&gt;Заголовок&lt;/summary&gt;&#10;&#10;Скрытый текст&#10;&#10;&lt;/details&gt;&#10;" title="Сворачиваемый блок">
+            <button data-snippet="&lt;details&gt;&lt;summary&gt;Заголовок&lt;/summary&gt;&#10;{sel}&#10;&lt;/details&gt;" data-ph="Скрытый текст" title="Сворачиваемый блок">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5 8 10l5-4.5"/><line x1="3" y1="13" x2="13" y2="13"/></svg>
             </button>
             <button id="timeBtn" title="Дата-время: покажется в часовом поясе читателя">
@@ -729,7 +729,7 @@
             </button>
           </span>
           <span class="group">
-            <button data-snippet="[текст](https://)" title="Ссылка">
+            <button data-before="[" data-after="](https://)" title="Ссылка — выделите текст и нажмите">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 9.5 9.5 6.5"/><path d="M7.5 4.5 9 3a2.8 2.8 0 0 1 4 4l-1.5 1.5"/><path d="M8.5 11.5 7 13a2.8 2.8 0 0 1-4-4l1.5-1.5"/></svg>
             </button>
             <span class="media-wrap">
@@ -741,10 +741,10 @@
                 <button id="imgUrlBtn">По ссылке</button>
               </span>
             </span>
-            <button data-snippet="&#10;&lt;tg-collage&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-collage&gt;&#10;" title="Коллаж из медиа">
+            <button data-snippet="&lt;tg-collage&gt;&#10;![](https://ссылка-1.jpg)&#10;![](https://ссылка-2.jpg)&#10;&lt;/tg-collage&gt;" title="Коллаж из медиа">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><rect x="1.5" y="2.5" width="7.5" height="5" rx="1"/><rect x="10.5" y="2.5" width="4" height="5" rx="1"/><rect x="1.5" y="9" width="4" height="4.5" rx="1"/><rect x="7" y="9" width="7.5" height="4.5" rx="1"/></svg>
             </button>
-            <button data-snippet="&#10;&lt;tg-slideshow&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-slideshow&gt;&#10;" title="Слайдшоу">
+            <button data-snippet="&lt;tg-slideshow&gt;&#10;![](https://ссылка-1.jpg)&#10;![](https://ссылка-2.jpg)&#10;&lt;/tg-slideshow&gt;" title="Слайдшоу">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3" width="9" height="8" rx="1.2"/><line x1="1" y1="5" x2="1" y2="9"/><line x1="15" y1="5" x2="15" y2="9"/><circle cx="6.5" cy="13.8" r=".9" fill="currentColor" stroke="none"/><circle cx="9.5" cy="13.8" r=".9" fill="currentColor" stroke="none" opacity=".45"/></svg>
             </button>
             <button id="mapBtn" title="Карта по координатам">
@@ -995,6 +995,25 @@ function insert(before, after, placeholder) {
   localStorage.setItem('draft', md.value);
   renderPreview();
 }
+/* Блочная вставка: с новой строки, один перенос в конце, выделение
+   оборачивается в блок ({sel}), без пустых строк вокруг и внутри */
+function insertBlock(tpl, ph) {
+  const s = md.selectionStart, e = md.selectionEnd;
+  const sel = md.value.slice(s, e) || ph || '';
+  const body = tpl.includes('{sel}') ? tpl.replace('{sel}', sel) : tpl;
+  const prefix = s > 0 && md.value[s - 1] !== '\n' ? '\n' : '';
+  md.setRangeText(prefix + body + '\n', s, e, 'end');
+  const idx = tpl.indexOf('{sel}');
+  if (idx !== -1) {
+    const start = s + prefix.length + idx;
+    md.selectionStart = start;
+    md.selectionEnd = start + sel.length;
+  }
+  md.focus();
+  localStorage.setItem('draft', md.value);
+  renderPreview();
+}
+
 document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener('click', () => {
   if (btn.dataset.wrap) insert(btn.dataset.wrap, btn.dataset.wrap, 'текст');
   else if (btn.dataset.before) insert(btn.dataset.before, btn.dataset.after || '', 'текст');
@@ -1004,7 +1023,7 @@ document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener
     md.setRangeText(btn.dataset.block, lineStart, lineStart, 'end');
     md.focus(); localStorage.setItem('draft', md.value); renderPreview();
   }
-  else if (btn.dataset.snippet) insert(btn.dataset.snippet, '', '');
+  else if (btn.dataset.snippet) insertBlock(btn.dataset.snippet, btn.dataset.ph);
 }));
 
 /* Сноска: [^N] в тексте + определение в конце, нумерация автоматическая */
@@ -1012,7 +1031,7 @@ $('footnoteBtn').addEventListener('click', () => {
   const used = [...md.value.matchAll(/\[\^(\d+)\]/g)].map(m => +m[1]);
   const n = used.length ? Math.max(...used) + 1 : 1;
   insert(`[^${n}]`, '', '');
-  md.value = md.value.replace(/\s*$/, '') + `\n\n[^${n}]: Текст сноски`;
+  md.value = md.value.replace(/\s*$/, '') + `\n[^${n}]: Текст сноски`;
   localStorage.setItem('draft', md.value);
   renderPreview();
 });
@@ -1021,7 +1040,7 @@ $('footnoteBtn').addEventListener('click', () => {
 $('anchorBtn').addEventListener('click', () => {
   const name = prompt('Имя якоря (латиницей, без пробелов):', 'section-1');
   if (!name) return;
-  insert(`\n<a name="${name.trim()}"></a>\n`, '', '');
+  insertBlock(`<a name="${name.trim()}"></a>`, '');
   toast(`Ссылка на якорь: [текст](#${name.trim()})`);
 });
 
@@ -1043,7 +1062,7 @@ $('mapBtn').addEventListener('click', () => {
   if (!coords) return;
   const [lat, lon, zoom] = coords.split(',').map(s => s.trim());
   if (!lat || !lon || isNaN(+lat) || isNaN(+lon)) { toast('Нужны два числа через запятую', true); return; }
-  insert(`\n<tg-map lat="${lat}" long="${lon}" zoom="${zoom && !isNaN(+zoom) ? zoom : 14}"/>\n`, '', '');
+  insertBlock(`<tg-map lat="${lat}" long="${lon}" zoom="${zoom && !isNaN(+zoom) ? zoom : 14}"/>`, '');
 });
 
 /* ── Медиа: одна кнопка с меню «файл / по ссылке» ── */
@@ -1069,7 +1088,7 @@ $('imgInput').addEventListener('change', async () => {
     r.readAsDataURL(file);
   });
   const resp = await api('/api/upload', {name: file.name, data});
-  if (resp.ok) { insert('\n![](' + resp.url + ' "Подпись")\n', '', ''); toast('Медиа добавлено'); }
+  if (resp.ok) { insertBlock('![](' + resp.url + ' "Подпись")', ''); toast('Медиа добавлено'); }
   else toast(resp.error, true);
   $('imgInput').value = '';
 });
@@ -1078,7 +1097,7 @@ $('imgUrlBtn').addEventListener('click', () => {
   const url = prompt('Ссылка на картинку (https://…):');
   if (!url) return;
   if (!/^https?:\/\//i.test(url.trim())) { toast('Нужна http(s)-ссылка', true); return; }
-  insert('\n![](' + url.trim() + ' "Подпись")\n', '', '');
+  insertBlock('![](' + url.trim() + ' "Подпись")', '');
 });
 
 /* ── Предпросмотр ── */
