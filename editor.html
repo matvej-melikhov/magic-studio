@@ -625,8 +625,7 @@
     }
     /* контент начинается под шапкой; скролл-области получают запас
        снизу, чтобы последние элементы выезжали из-под стекла */
-    #content { padding-top: calc(42px + env(safe-area-inset-top)); }
-    .editor-foot { padding-bottom: calc(10px + 53px + env(safe-area-inset-bottom)); }
+    #content { padding-top: calc(46px + env(safe-area-inset-top)); }
     #chat { padding-bottom: calc(28px + 62px + env(safe-area-inset-bottom)); }
     #toast { bottom: calc(66px + env(safe-area-inset-bottom)); }
     #app.side-collapsed { grid-template-columns: 1fr; }
@@ -661,8 +660,8 @@
     .toolbar .group { flex: 0 0 auto; }
     .toolbar .group button { padding: 9px 12px; font-size: 14px; }
 
-    /* Нижняя панель: кнопки равными долями */
-    .editor-foot { padding: 10px 14px; }
+    /* Нижняя панель: кнопки равными долями; запас снизу — под стеклянное меню */
+    .editor-foot { padding: 10px 14px calc(10px + 53px + env(safe-area-inset-bottom)); }
     .editor-foot .btn { flex: 1; padding: 12px 8px; font-size: 13px; }
     #md { padding: 10px 14px 14px; font-size: 15px; }
 
