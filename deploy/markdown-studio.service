@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/markdown-bot
-ExecStart=/opt/markdown-bot/venv/bin/python3 server.py
+ExecStart=/opt/markdown-bot/venv/bin/python3 app/server.py
 Restart=always
 RestartSec=5
 Environment=PORT=80

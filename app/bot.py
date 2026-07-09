@@ -1,7 +1,7 @@
 """MVP Telegram-бот: принимает markdown (текстом или файлом) и отправляет
 его обратно как rich message (Bot API 10.1, sendRichMessage).
 
-Запуск:  BOT_TOKEN=123:abc python3 bot.py
+Запуск из корня репозитория:  BOT_TOKEN=123:abc python3 app/bot.py
 """
 
 import json

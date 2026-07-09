@@ -1,6 +1,7 @@
 """Локальный веб-редактор постов (эмуляция будущей Mini App).
 
-Запуск:  python3 server.py   (токен берётся из .env или переменной BOT_TOKEN)
+Запуск из корня репозитория:  python3 app/server.py
+(токен берётся из .env или переменной BOT_TOKEN)
 Открыть с телефона: http://<IP-мака-в-Wi-Fi>:8080
 
 Данные (сессии, каналы, черновики, отложенные, публикации) — в SQLite
@@ -33,7 +34,10 @@ API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 FILE_URL = f"https://api.telegram.org/file/bot{BOT_TOKEN}"
 
 PORT = int(os.environ.get("PORT", "8080"))
-EDITOR_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "editor.html")
+# фронтенд и PWA-статика лежат в web/ рядом с пакетом app/
+WEB_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
+EDITOR_FILE = os.path.join(WEB_DIR, "editor.html")
 LOGIN_CODES_FILE = "login_codes.json"
 
 log = logging.getLogger("editor-server")
