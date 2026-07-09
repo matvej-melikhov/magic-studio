@@ -136,8 +136,11 @@
     border-bottom: 1px solid var(--line-soft); margin-bottom: 4px;
     position: relative;
   }
-  /* свёрнуто: видны первые две группы, остальные скрыты полностью */
-  .toolbar:not(.open) .group:nth-child(n+3) { display: none; }
+  /* свёрнуто: видны первые две группы и AI, остальные скрыты полностью */
+  .toolbar:not(.open) .group:nth-child(n+3):not(.ai-group) { display: none; }
+  .ai-group button { color: var(--accent); }
+  .ai-busy svg { animation: aispin 1.1s linear infinite; }
+  @keyframes aispin { to { transform: rotate(360deg); } }
   #toolsToggle {
     position: absolute; top: 10px; right: 14px; width: 30px; height: 31px;
     display: grid; place-items: center; color: var(--muted);
@@ -764,6 +767,18 @@
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 14s4.8-4.2 4.8-8A4.8 4.8 0 0 0 3.2 6c0 3.8 4.8 8 4.8 8z" stroke-linejoin="round"/><circle cx="8" cy="6" r="1.6"/></svg>
             </button>
           </span>
+          <span class="group ai-group">
+            <span class="media-wrap">
+              <button id="aiBtn" title="AI-помощник">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
+              </button>
+              <span class="media-menu" id="aiMenu" hidden>
+                <button id="aiRewrite">Переписать выделенное</button>
+                <button id="aiFormat">Оформить разметкой</button>
+                <button id="aiGenerate">Написать с нуля…</button>
+              </span>
+            </span>
+          </span>
           <button id="toolsToggle" title="Показать все инструменты">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l5 5 5-5"/></svg>
           </button>
@@ -1131,6 +1146,53 @@ $('imgUrlBtn').addEventListener('click', () => {
   if (!url) return;
   if (!/^https?:\/\//i.test(url.trim())) { toast('Нужна http(s)-ссылка', true); return; }
   insertBlock('![](' + url.trim() + ' "Подпись")', '');
+});
+
+/* ── AI-помощник: локальная модель через сервер (/api/ai → Ollama) ── */
+let aiBusy = false;
+
+$('aiBtn').addEventListener('click', () => {
+  $('aiMenu').hidden = !$('aiMenu').hidden;
+  $('mediaMenu').hidden = true;
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ai-group')) $('aiMenu').hidden = true;
+});
+
+async function runAI(action, text, selStart, selEnd) {
+  if (aiBusy) { toast('Модель ещё думает над прошлым запросом', true); return; }
+  aiBusy = true;
+  $('aiBtn').classList.add('ai-busy');
+  toast('Модель думает — может занять до минуты…');
+  const resp = await api('/api/ai', {action, text});
+  aiBusy = false;
+  $('aiBtn').classList.remove('ai-busy');
+  if (!resp.ok) { toast(resp.error, true); return; }
+  typeText(resp.text, selStart, selEnd);
+  localStorage.setItem('draft', md.value);
+  renderPreview();
+  toast('Готово. Не понравилось — Ctrl+Z вернёт как было');
+}
+
+$('aiRewrite').addEventListener('click', () => {
+  $('aiMenu').hidden = true;
+  const s = md.selectionStart, e = md.selectionEnd;
+  if (s === e) { toast('Выделите текст, который нужно переписать', true); return; }
+  runAI('rewrite', md.value.slice(s, e), s, e);
+});
+$('aiFormat').addEventListener('click', () => {
+  $('aiMenu').hidden = true;
+  const s = md.selectionStart, e = md.selectionEnd;
+  const hasSel = s !== e;
+  const text = hasSel ? md.value.slice(s, e) : md.value;
+  if (!text.trim()) { toast('Пост пустой — оформлять нечего', true); return; }
+  runAI('format', text, hasSel ? s : 0, hasSel ? e : md.value.length);
+});
+$('aiGenerate').addEventListener('click', () => {
+  $('aiMenu').hidden = true;
+  const q = prompt('О чём написать пост?');
+  if (!q || !q.trim()) return;
+  runAI('generate', q.trim(), md.selectionStart, md.selectionEnd);
 });
 
 /* ── Предпросмотр ── */

@@ -51,6 +51,80 @@ LITTERBOX_API = "https://litterbox.catbox.moe/resources/internals/api.php"
 # Через сколько секунд зависший «sending» считается прерванным
 SENDING_STALE_AFTER = 180
 
+# ── AI-помощник: локальная модель через Ollama ──────
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+AI_MODEL = os.environ.get("AI_MODEL", "gemma4:12b-mlx")
+
+# Шпаргалка по rich-формату — общая часть системного промпта
+AI_FORMAT_GUIDE = """Ты работаешь с Rich Markdown — форматом постов Telegram (Bot API 10.1).
+Доступная разметка:
+- Заголовки: # … ###### (шесть уровней)
+- **жирный**, _курсив_, ~~зачёркнутый~~, <u>подчёркнутый</u>, ==выделение маркером==, ||спойлер||
+- `код в строке` и блоки кода ```язык … ```
+- Формулы LaTeX: $x^2$ в строке, $$…$$ блоком (сырой LaTeX, без экранирования)
+- Цитаты: > текст; выносная цитата: <aside>текст<cite>Автор</cite></aside>
+- Списки: -, 1., чекбоксы - [ ] / - [x]
+- Таблицы GFM, разделитель ---, сноски [^1] с определением [^1]: текст
+- Свёртка: <details><summary>Заголовок</summary>текст</details>
+- Подпись поста: <footer>текст</footer>
+- Медиа только блочными строками: ![](https://… "Подпись")
+Важно: одиночный перенос строки склеивается в пробел — абзацы разделяй пустой строкой.
+Отвечай ТОЛЬКО готовым текстом поста, без пояснений, без обёртки ```markdown."""
+
+AI_PROMPTS = {
+    "rewrite": (
+        AI_FORMAT_GUIDE + "\n\nЗадача: перепиши присланный фрагмент — сделай его яснее "
+        "и живее, сохранив смысл, язык, тон и уже имеющуюся разметку. "
+        "Не добавляй ничего от себя и не комментируй."
+    ),
+    "format": (
+        AI_FORMAT_GUIDE + "\n\nЗадача: оформи присланный сырой текст разметкой Rich Markdown. "
+        "Сам текст не переписывай. Добавляй разметку только там, где она реально улучшает "
+        "читаемость: перечисления — в списки, имена переменных и команд — в `код`, "
+        "формулы — в $…$/$$…$$, крупные смысловые части — под заголовки. "
+        "Если тексту разметка не нужна — верни его без изменений."
+    ),
+    "generate": (
+        AI_FORMAT_GUIDE + "\n\nЗадача: напиши пост для Telegram-канала по запросу "
+        "пользователя. Пиши на языке запроса, структурируй разметкой там, где это уместно."
+    ),
+}
+
+
+def ai_complete(action: str, text: str) -> tuple[bool, str]:
+    """Запрос к локальной модели Ollama. Возвращает (ok, текст|ошибка)."""
+    system = AI_PROMPTS.get(action)
+    if not system:
+        return False, "Неизвестное действие."
+    try:
+        resp = requests.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={
+                "model": AI_MODEL,
+                "stream": False,
+                "think": False,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": text},
+                ],
+                "options": {"temperature": 0.7, "num_ctx": 8192},
+            },
+            timeout=300,
+        )
+    except requests.RequestException as e:
+        return False, ("Ollama недоступен — запустите `ollama serve` "
+                       f"({e.__class__.__name__})")
+    if not resp.ok:
+        return False, f"Ollama: {resp.status_code} {resp.text[:200]}"
+    content = (resp.json().get("message") or {}).get("content", "").strip()
+    if not content:
+        return False, "Модель вернула пустой ответ."
+    # некоторые модели заворачивают ответ в код-блок вопреки промпту
+    m = re.fullmatch(r"```(?:markdown|md)?\n(.*)\n```", content, re.S)
+    if m:
+        content = m.group(1).strip()
+    return True, content
+
 
 def consume_login_code(code: str) -> dict | None:
     """Проверяет код из login_codes.json (пишет bot.py) и гасит его."""
@@ -429,6 +503,14 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"ok": True})
                 else:
                     self._json({"ok": False, "error": "Пост не найден или уже отправлен."})
+            elif self.path == "/api/ai":
+                data = self._read_json()
+                text = (data.get("text") or "").strip()
+                if not text:
+                    self._json({"ok": False, "error": "Пустой запрос."})
+                    return
+                ok, result = ai_complete(data.get("action", ""), text)
+                self._json({"ok": ok, ("text" if ok else "error"): result})
             elif self.path == "/api/schedule/cancel":
                 storage.sched_cancel(uid, self._read_json().get("id", ""))
                 self._json({"ok": True})
@@ -476,6 +558,7 @@ def main():
         log.info("Картинки: S3 %s/%s", s3.endpoint, s3.bucket)
     else:
         log.info("Картинки: хранилище Telegram (S3 не настроен в .env)")
+    log.info("AI-помощник: %s через %s", AI_MODEL, OLLAMA_URL)
     for ip in local_ips():
         log.info("Открыть на телефоне: http://%s:%d", ip, PORT)
     threading.Thread(target=scheduler_loop, daemon=True).start()
