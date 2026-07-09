@@ -219,7 +219,7 @@
   }
   .bubble .meta svg { opacity: .8; }
   .bubble > .content > :first-child { margin-top: 2px; }
-  .bubble p { margin: 0 0 12px; }
+  .bubble p { margin: 0 0 9px; }
   /* Заголовки как в iOS-клиенте: антиква New York, обычный вес */
   .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 {
     /* отступ после заголовка ~1em его размера, как в iOS-рендере */
@@ -233,7 +233,7 @@
   .bubble h5 { font-size: 16.5px; line-height: 22px; }
   .bubble h6 { font-size: 15px; line-height: 20px; }
   .bubble blockquote {
-    margin: 4px 0 16px; padding: 2px 0 2px 14px; position: relative;
+    margin: 2px 0 9px; padding: 2px 0 2px 14px; position: relative;
     font-style: italic;
   }
   .bubble blockquote::before {
@@ -242,13 +242,13 @@
   }
   .bubble blockquote .cite { font-weight: 600; }
   .bubble aside {
-    margin: 6px 0 14px; padding: 14px 8px; text-align: center;
+    margin: 2px 0 9px; padding: 12px 8px; text-align: center;
     font-style: italic; font-weight: 600; font-size: 15.5px; color: var(--bubble-ink);
     border-top: 1px solid var(--tg-border); border-bottom: 1px solid var(--tg-border);
   }
   .bubble aside cite { font-weight: 400; color: var(--tg-sub); font-style: italic; }
-  .bubble ul, .bubble ol { margin: 0 0 12px; padding-left: 28px; }
-  .bubble li { margin: 0 0 4px; }
+  .bubble ul, .bubble ol { margin: 0 0 9px; padding-left: 28px; }
+  .bubble li { margin: 0 0 3px; }
   /* Чекбоксы как в iOS: крупные скруглённые, синяя заливка у отмеченных */
   .bubble li.task { list-style: none; margin-left: -24px; display: flex; align-items: center; gap: 12px; }
   .bubble li.task input {
@@ -267,12 +267,12 @@
   .bubble pre code { font-size: 13px; }
   /* Код-блок во всю ширину пузыря, как в iOS */
   .bubble pre {
-    margin: 4px -12px 14px; padding: 12px; border-radius: 0;
+    margin: 2px -12px 9px; padding: 12px; border-radius: 0;
     background: color-mix(in srgb, var(--tg-code-bg) 80%, transparent);
     overflow-x: auto;
   }
   .bubble pre code { padding: 0; background: none; }
-  .bubble hr { border: none; border-top: 1px solid var(--tg-border); margin: 4px 0 14px; }
+  .bubble hr { border: none; border-top: 1px solid var(--tg-border); margin: 2px 0 9px; }
   .bubble mark { background: #FDE68A; color: #000; border-radius: 2px; padding: 0 1px; }
   .bubble .spoiler {
     border-radius: 4px; cursor: pointer; color: transparent; transition: all .15s;
@@ -286,17 +286,17 @@
   .bubble .spoiler.open { background: var(--tg-code-bg); color: inherit; }
   .bubble .katex { font-size: 1.05em; }
   .bubble .math-block {
-    display: block; text-align: left; margin: 4px 0 16px; padding: 4px 0;
+    display: block; text-align: left; margin: 2px 0 9px; padding: 4px 0;
     overflow-x: auto; font-size: 15px;
   }
   .bubble .math-block .katex-display { text-align: left; margin: 0; }
   .bubble .math-block .katex-display > .katex { text-align: left; }
   .bubble img { max-width: calc(100% + 24px); margin: 0 -12px; display: block; }
-  .bubble figure { margin: 0 0 12px; }
+  .bubble figure { margin: 0 0 9px; }
   .bubble figure:first-child img { border-radius: 12px 12px 0 0; margin-top: -7px; }
   .bubble figcaption { font-size: 13px; color: var(--tg-sub); text-align: left; margin: 8px 0 2px; }
   .bubble table {
-    border-collapse: separate; border-spacing: 0; margin: 4px 0 16px;
+    border-collapse: separate; border-spacing: 0; margin: 2px 0 9px;
     font-size: 14px; line-height: 19px; width: 100%;
     border: 1px solid var(--tg-border); border-radius: 8px; overflow: hidden;
     table-layout: fixed;
@@ -309,7 +309,7 @@
   .bubble tr:last-child > td { border-bottom: none; }
   .bubble th { background: var(--tg-code-bg); font-weight: 400; }
   .bubble details {
-    margin: 0 0 14px; border: 1px solid var(--tg-border); border-radius: 6px; overflow: hidden;
+    margin: 0 0 9px; border: 1px solid var(--tg-border); border-radius: 6px; overflow: hidden;
   }
   .bubble summary {
     font-weight: 400; cursor: pointer; background: var(--tg-code-bg); padding: 12px 8px;
