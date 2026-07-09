@@ -466,6 +466,7 @@
     border-radius: var(--r-pill); flex: 0 0 auto;
   }
   .card .edit:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .card a.tg-open { text-decoration: none; }
   .card.sched .body { cursor: pointer; }
   .sched-preview { margin: -2px 0 10px; padding: 10px 12px; background: var(--chat-bg);
     border-radius: var(--r-flat); }
@@ -1540,6 +1541,9 @@ function renderScheduled() {
           <div class="meta">${esc(p.target)}</div>
         </div>
         <span class="badge published">${fmtDate(p.when)}</span>
+        ${p.message_id && p.target.startsWith('@')
+          ? `<a class="edit tg-open" href="https://t.me/${esc(p.target.slice(1))}/${p.message_id}"
+               target="_blank" rel="noopener" title="Открыть пост в Telegram">Открыть ↗</a>` : ''}
         ${p.message_id ? `<button class="edit" data-editpub="${p.id}">Изменить</button>` : ''}
       </div>
       <div class="sched-preview" data-pubpreview="${p.id}" hidden></div>`).join('');
