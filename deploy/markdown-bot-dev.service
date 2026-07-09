@@ -1,0 +1,16 @@
+[Unit]
+Description=Студия постов DEV — Telegram-бот (bot.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/markdown-bot-dev
+ExecStart=/opt/markdown-bot-dev/venv/bin/python3 bot.py
+Restart=always
+RestartSec=5
+User=markdown
+Group=markdown
+
+[Install]
+WantedBy=multi-user.target

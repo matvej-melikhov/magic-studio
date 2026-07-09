@@ -1,17 +1,18 @@
-name: Deploy
+name: Deploy DEV
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
   workflow_dispatch:
 
 concurrency:
-  group: deploy
+  group: deploy-dev
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: dev
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +37,11 @@ jobs:
             --exclude '.env' --exclude 'studio.db*' \
             --exclude 'login_codes.json' --exclude 'state.json' \
             --exclude 'data.json*' \
-            ./ "$USER@$HOST:/opt/markdown-bot/"
+            ./ "$USER@$HOST:/opt/markdown-bot-dev/"
 
       - name: Restart services
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key "$USER@$HOST" 'bash /opt/markdown-bot/deploy/update.sh'
+          ssh -i ~/.ssh/deploy_key "$USER@$HOST" 'bash /opt/markdown-bot-dev/deploy/update.sh dev'

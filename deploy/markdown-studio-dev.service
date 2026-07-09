@@ -1,0 +1,17 @@
+[Unit]
+Description=Студия постов DEV — веб-редактор (server.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/markdown-bot-dev
+ExecStart=/opt/markdown-bot-dev/venv/bin/python3 server.py
+Restart=always
+RestartSec=5
+Environment=PORT=8081
+User=markdown
+Group=markdown
+
+[Install]
+WantedBy=multi-user.target
