@@ -374,6 +374,13 @@ class Handler(BaseHTTPRequestHandler):
         token = self.headers.get("X-Session", "")
         return storage.session_get(token) if token else None
 
+    # Статика PWA: манифест и иконки приложения
+    STATIC_FILES = {
+        "/manifest.json": ("manifest.json", "application/manifest+json"),
+        "/icon-180.png": ("icon-180.png", "image/png"),
+        "/icon-512.png": ("icon-512.png", "image/png"),
+    }
+
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             try:
@@ -382,6 +389,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, b"editor.html not found", "text/plain")
                 return
             self._send(200, body, "text/html; charset=utf-8")
+        elif self.path in self.STATIC_FILES:
+            name, ctype = self.STATIC_FILES[self.path]
+            path = os.path.join(os.path.dirname(EDITOR_FILE), name)
+            try:
+                self._send(200, open(path, "rb").read(), ctype)
+            except OSError:
+                self._send(404, b"not found", "text/plain")
         elif self.path == "/api/config":
             self._json({"ok": True, "bot": BOT_USERNAME})
         elif self.path == "/api/state":
