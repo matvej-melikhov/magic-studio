@@ -303,7 +303,7 @@
   .bubble img { max-width: calc(100% + 24px); margin: 0 -12px; display: block; }
   .bubble figure { margin: 0 0 14px; }
   .bubble figure:first-child img { border-radius: 12px 12px 0 0; margin-top: -7px; }
-  .bubble figcaption { font-size: 13px; color: var(--tg-sub); text-align: left; margin: 8px 0 2px; }
+  .bubble figcaption { font-size: 15px; color: var(--tg-sub); text-align: left; margin: 10px 0 2px; }
   .bubble table {
     border-collapse: separate; border-spacing: 0; margin: 2px 0 14px;
     font-size: 14px; line-height: 19px; width: 100%;
@@ -348,9 +348,29 @@
     display: block; font-size: 10.5px; color: var(--tg-sub);
     text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px;
   }
-  .bubble video { max-width: calc(100% + 24px); width: calc(100% + 24px); margin: 0 -12px; display: block; }
-  .bubble audio { width: 100%; display: block; margin: 4px 0; }
-  .bubble .voice { font-size: 13px; color: var(--tg-sub); padding: 2px 0; }
+  .bubble .vwrap { position: relative; display: block; margin: 0 -12px; }
+  .bubble .vwrap video { width: 100%; display: block; }
+  .bubble .vplay {
+    position: absolute; inset: 0; margin: auto; width: 58px; height: 58px;
+    border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; font-size: 20px;
+    display: grid; place-items: center; cursor: pointer; padding-left: 4px;
+    transition: opacity .2s;
+  }
+  .bubble .vplay.playing { opacity: 0; }
+  .bubble .vwrap:hover .vplay.playing { opacity: .7; }
+  .bubble .audiow { display: flex; gap: 13px; align-items: center; padding: 4px 0; }
+  .bubble .audiow audio { display: none; }
+  .bubble .aplay {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--tg-link);
+    color: #fff; font-size: 19px; display: grid; place-items: center;
+    cursor: pointer; flex: 0 0 auto; padding-left: 3px;
+  }
+  .bubble .ameta { min-width: 0; }
+  .bubble .aname {
+    display: block; color: var(--tg-link); font-size: 16px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bubble .asub { display: block; color: var(--tg-sub); font-size: 14px; margin-top: 2px; }
   .bubble .mapbox {
     height: 150px; margin: 0 0 8px; border-radius: 8px; display: grid;
     place-content: center; justify-items: center; gap: 4px;
@@ -362,9 +382,11 @@
   .bubble .mapbox span:first-child { font-size: 30px; }
   .bubble .mapbox .coords { font-size: 12px; color: #5A7089; }
   .bubble .collage {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 0 -12px 8px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 0 -12px 14px;
   }
-  .bubble .collage img { width: 100%; height: 130px; object-fit: cover; margin: 0; }
+  .bubble .collage img { width: 100%; height: 150px; object-fit: cover; margin: 0; }
+  .bubble .collage.n1 img { grid-column: 1 / -1; height: 260px; }
+  .bubble .collage.n3 img:first-child { grid-column: 1 / -1; height: 230px; }
   .bubble .slideshow {
     display: flex; gap: 4px; overflow-x: auto; margin: 0 -12px 8px;
     scroll-snap-type: x mandatory;
@@ -1017,16 +1039,47 @@ function inline(text) {
 function mediaBlock(url, caption) {
   const cap = caption ? `<figcaption>${esc(caption)}</figcaption>` : '';
   const clean = url.split('?')[0].toLowerCase();
+  const fname = decodeURIComponent(clean.split('/').pop() || 'аудио');
   let inner;
   if (/\.(mp4|mov|webm)$/.test(clean))
-    inner = `<video src="${esc(url)}" controls muted playsinline></video>`;
-  else if (/\.(mp3|m4a|wav|flac)$/.test(clean))
-    inner = `<audio src="${esc(url)}" controls></audio>`;
-  else if (/\.(ogg|oga|opus)$/.test(clean))
-    inner = `<div class="voice">🎙 голосовое сообщение<audio src="${esc(url)}" controls></audio></div>`;
+    inner = `<span class="vwrap"><video src="${esc(url)}" muted playsinline preload="metadata"></video>` +
+            `<span class="vplay">▶</span></span>`;
+  else if (/\.(mp3|m4a|wav|flac|ogg|oga|opus)$/.test(clean))
+    inner = `<span class="audiow"><button class="aplay">▶</button>` +
+            `<span class="ameta"><span class="aname">${esc(fname)}</span>` +
+            `<span class="asub">…</span></span>` +
+            `<audio src="${esc(url)}" preload="metadata"></audio></span>`;
   else
     inner = `<img src="${esc(url)}" loading="lazy">`;
   return `<figure>${inner}${cap}</figure>`;
+}
+
+function fmtDuration(sec) {
+  if (!isFinite(sec)) return '';
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+/* Оживление медиа-виджетов предпросмотра (play/pause, длительность) */
+function attachMedia(root) {
+  root.querySelectorAll('.audiow').forEach(w => {
+    const a = w.querySelector('audio'), btn = w.querySelector('.aplay'),
+          sub = w.querySelector('.asub');
+    a.addEventListener('loadedmetadata', () => { sub.textContent = fmtDuration(a.duration); });
+    a.addEventListener('ended', () => { btn.textContent = '▶'; });
+    btn.addEventListener('click', () => {
+      if (a.paused) { a.play(); btn.textContent = '❚❚'; }
+      else { a.pause(); btn.textContent = '▶'; }
+    });
+  });
+  root.querySelectorAll('.vwrap').forEach(w => {
+    const v = w.querySelector('video'), p = w.querySelector('.vplay');
+    p.addEventListener('click', () => {
+      if (v.paused) { v.play(); p.classList.add('playing'); }
+      else { v.pause(); p.classList.remove('playing'); }
+    });
+    v.addEventListener('ended', () => p.classList.remove('playing'));
+  });
 }
 
 function buildContentHtml(src) {
@@ -1129,7 +1182,8 @@ function buildContentHtml(src) {
         i++;
       }
       i++;
-      out.push(`<div class="${kind}">` +
+      const nclass = kind === 'collage' ? ` n${Math.min(urls.length, 4)}` : '';
+      out.push(`<div class="${kind}${nclass}">` +
                urls.map(u => `<img src="${esc(u)}" loading="lazy">`).join('') + '</div>');
       continue;
     }
@@ -1212,6 +1266,7 @@ function applyMath(root) {
       node.parentNode.replaceChild(frag, node);
     });
   }
+  attachMedia(root);
 }
 
 function renderPreview() {
