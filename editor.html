@@ -130,7 +130,11 @@
   .pane-h .spacer { flex: 1; }
   .editor-pane { border-right: 1px solid var(--line); background: var(--surface); }
 
-  .toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 20px 10px; flex: 0 0 auto; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 20px; flex: 0 0 auto;
+    background: var(--bg); border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft); margin-bottom: 4px;
+  }
   .toolbar .group {
     display: flex; border: 1px solid var(--line-soft); border-radius: var(--r-pill); overflow: hidden;
     background: var(--surface);
@@ -143,6 +147,18 @@
   .toolbar .group button:hover { background: var(--bg); color: var(--ink); }
   .toolbar .group button b { font-weight: 800; }
   .toolbar .group button svg { display: block; }
+  .media-wrap { position: relative; display: flex; }
+  .media-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 8;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(24,32,43,.12); overflow: hidden; min-width: 150px;
+  }
+  .media-menu button {
+    display: block; width: 100%; text-align: left; padding: 10px 14px;
+    font-size: 13px; font-weight: 500; border-right: none !important;
+  }
+  .media-menu button:hover { background: var(--bg); }
+  .media-menu button + button { border-top: 1px solid var(--line-soft); }
   .toolbar .group button i { font-family: Georgia, serif; }
 
   #md {
@@ -690,11 +706,13 @@
             <button data-snippet="&#10;&lt;footer&gt;Подпись поста&lt;/footer&gt;&#10;" title="Футер — мелкий текст внизу поста">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="2.2" width="12.4" height="11.6" rx="1.8"/><rect x="4" y="10" width="8" height="1.6" rx=".8" fill="currentColor" stroke="none"/></svg>
             </button>
-            <button id="anchorBtn" title="Якорь + ссылка на него">⚓</button>
+            <button id="anchorBtn" title="Якорь + ссылка на него">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="3.5" r="1.8"/><line x1="8" y1="5.3" x2="8" y2="13.5"/><path d="M2.5 9.5c.4 3 2.6 4.5 5.5 4.5s5.1-1.5 5.5-4.5"/><line x1="5.5" y1="7.5" x2="10.5" y2="7.5"/></svg>
+            </button>
           </span>
           <span class="group">
-            <button data-wrap="$" title="Формула в строке"><i style="font-family:Georgia,serif">ƒ</i></button>
-            <button data-snippet="&#10;$$&#10;E = mc^2&#10;$$&#10;" title="Формула блоком">∑</button>
+            <button data-wrap="$" title="Формула в строке"><b>$</b></button>
+            <button data-snippet="&#10;$$&#10;E = mc^2&#10;$$&#10;" title="Формула блоком"><b>$$</b></button>
             <button data-snippet="&#10;```python&#10;print('код')&#10;```&#10;" title="Блок кода с языком">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8"/><path d="M6.2 6.2 4.4 8l1.8 1.8M9.8 6.2 11.6 8 9.8 9.8"/></svg>
             </button>
@@ -704,19 +722,32 @@
             <button data-snippet="&#10;&lt;details&gt;&lt;summary&gt;Заголовок&lt;/summary&gt;&#10;&#10;Скрытый текст&#10;&#10;&lt;/details&gt;&#10;" title="Сворачиваемый блок">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5 8 10l5-4.5"/><line x1="3" y1="13" x2="13" y2="13"/></svg>
             </button>
-            <button id="timeBtn" title="Дата-время: покажется в часовом поясе читателя">🕐</button>
+            <button id="timeBtn" title="Дата-время: покажется в часовом поясе читателя">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.4 1.8"/></svg>
+            </button>
           </span>
           <span class="group">
-            <button data-snippet="[текст](https://)" title="Ссылка">🔗</button>
-            <button id="imgBtn" title="Загрузить медиа: фото, видео, аудио, гиф">📷</button>
-            <button id="imgUrlBtn" title="Медиа по ссылке: фото, видео, аудио, гиф, голосовое">🖼</button>
+            <button data-snippet="[текст](https://)" title="Ссылка">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 9.5 9.5 6.5"/><path d="M7.5 4.5 9 3a2.8 2.8 0 0 1 4 4l-1.5 1.5"/><path d="M8.5 11.5 7 13a2.8 2.8 0 0 1-4-4l1.5-1.5"/></svg>
+            </button>
+            <span class="media-wrap">
+              <button id="mediaBtn" title="Медиа: фото, видео, аудио, гиф">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8"/><circle cx="5.5" cy="6" r="1.3"/><path d="m1.5 11.5 3.5-3 2.5 2 3-3.5 4 4.5" stroke-linejoin="round"/></svg>
+              </button>
+              <span class="media-menu" id="mediaMenu" hidden>
+                <button id="imgBtn">Выбрать файл</button>
+                <button id="imgUrlBtn">По ссылке</button>
+              </span>
+            </span>
             <button data-snippet="&#10;&lt;tg-collage&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-collage&gt;&#10;" title="Коллаж из медиа">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><rect x="1.5" y="2.5" width="7.5" height="5" rx="1"/><rect x="10.5" y="2.5" width="4" height="5" rx="1"/><rect x="1.5" y="9" width="4" height="4.5" rx="1"/><rect x="7" y="9" width="7.5" height="4.5" rx="1"/></svg>
             </button>
             <button data-snippet="&#10;&lt;tg-slideshow&gt;&#10;&#10;![](https://ссылка-1.jpg)&#10;&#10;![](https://ссылка-2.jpg)&#10;&#10;&lt;/tg-slideshow&gt;&#10;" title="Слайдшоу">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3" width="9" height="8" rx="1.2"/><line x1="1" y1="5" x2="1" y2="9"/><line x1="15" y1="5" x2="15" y2="9"/><circle cx="6.5" cy="13.8" r=".9" fill="currentColor" stroke="none"/><circle cx="9.5" cy="13.8" r=".9" fill="currentColor" stroke="none" opacity=".45"/></svg>
             </button>
-            <button id="mapBtn" title="Карта по координатам">📍</button>
+            <button id="mapBtn" title="Карта по координатам">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 14s4.8-4.2 4.8-8A4.8 4.8 0 0 0 3.2 6c0 3.8 4.8 8 4.8 8z" stroke-linejoin="round"/><circle cx="8" cy="6" r="1.6"/></svg>
+            </button>
           </span>
         </div>
         <textarea id="md" placeholder="# Заголовок поста&#10;&#10;Начните писать — предпросмотр обновляется сам…" autocapitalize="sentences" spellcheck="true"></textarea>
@@ -1013,8 +1044,14 @@ $('mapBtn').addEventListener('click', () => {
   insert(`\n<tg-map lat="${lat}" long="${lon}" zoom="${zoom && !isNaN(+zoom) ? zoom : 14}"/>\n`, '', '');
 });
 
-/* ── Картинки ── */
-$('imgBtn').addEventListener('click', () => $('imgInput').click());
+/* ── Медиа: одна кнопка с меню «файл / по ссылке» ── */
+$('mediaBtn').addEventListener('click', () => {
+  $('mediaMenu').hidden = !$('mediaMenu').hidden;
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.media-wrap')) $('mediaMenu').hidden = true;
+});
+$('imgBtn').addEventListener('click', () => { $('mediaMenu').hidden = true; $('imgInput').click(); });
 $('imgInput').addEventListener('change', async () => {
   const file = $('imgInput').files[0];
   if (!file) return;
@@ -1035,6 +1072,7 @@ $('imgInput').addEventListener('change', async () => {
   $('imgInput').value = '';
 });
 $('imgUrlBtn').addEventListener('click', () => {
+  $('mediaMenu').hidden = true;
   const url = prompt('Ссылка на картинку (https://…):');
   if (!url) return;
   if (!/^https?:\/\//i.test(url.trim())) { toast('Нужна http(s)-ссылка', true); return; }
