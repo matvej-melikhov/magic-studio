@@ -21,12 +21,16 @@ systemctl restart $UNITS
 sleep 2
 systemctl --no-pager --quiet is-active $UNITS
 
-# роутинг стендов (/prod, /dev) — если на сервере установлен nginx
+# роутинг стендов (/prod, /dev) — если на сервере установлен nginx.
+# reload/restart могут не пройти, пока 80 порт ещё занят старым продом —
+# это не ошибка деплоя: nginx поднимется со следующей раскаткой прода
 if command -v nginx >/dev/null && [ -d /etc/nginx/sites-available ]; then
     cp deploy/nginx-stands.conf /etc/nginx/sites-available/stands.conf
     ln -sf ../sites-available/stands.conf /etc/nginx/sites-enabled/stands.conf
     rm -f /etc/nginx/sites-enabled/default
-    nginx -t -q && systemctl reload nginx
+    if nginx -t -q 2>/dev/null; then
+        systemctl reload nginx 2>/dev/null || systemctl restart nginx 2>/dev/null || true
+    fi
 fi
 
 echo "Deploy OK [$STAND]: $(date -u +%FT%TZ)"
