@@ -180,18 +180,29 @@ def manager_view(uid: int) -> tuple[str, dict]:
     return text, kb(rows)
 
 
-def pack_view(uid: int, pid: int) -> tuple[str, dict]:
-    """Экран коллекции: состав и удаление целиком."""
+def _utf16_len(s: str) -> int:
+    """Длина строки в UTF-16 code units — так Telegram считает офсеты."""
+    return len(s.encode("utf-16-le")) // 2
+
+
+def pack_view(uid: int, pid: int) -> tuple[str, dict, list]:
+    """Экран коллекции: состав настоящими кастомными эмодзи, удаление целиком."""
     pack = next((p for p in storage.epacks_list(uid) if p["id"] == pid), None)
     if not pack:
-        return manager_view(uid)
-    sample = "".join(e["alt"] for e in storage.emojis_by_pack(uid, pid)[:30])
-    text = (f"📦 «{pack['name']}» — {pack['count']} эмодзи.\n{sample}\n\n"
-            "Коллекция удаляется только целиком.")
+        return (*manager_view(uid), [])
+    text = f"📦 «{pack['name']}» — {pack['count']} эмодзи.\n"
+    entities = []
+    for e in storage.emojis_by_pack(uid, pid)[:30]:
+        entities.append({"type": "custom_emoji",
+                         "offset": _utf16_len(text),
+                         "length": _utf16_len(e["alt"]),
+                         "custom_emoji_id": e["emoji_id"]})
+        text += e["alt"]
+    text += "\n\nКоллекция удаляется только целиком."
     return text, kb([
         [{"text": "🗑 Удалить коллекцию", "callback_data": f"pd:{pid}"}],
         [{"text": "⬅️ Назад", "callback_data": "pb"}],
-    ])
+    ]), entities
 
 
 def import_packs(message: dict) -> bool:
@@ -241,10 +252,12 @@ def handle_callback(cq: dict):
     uid = cq.get("from", {}).get("id", 0)
     ack = ""
 
-    def edit(text: str, keyboard: dict | None):
+    def edit(text: str, keyboard: dict | None, entities: list | None = None):
         params = {"chat_id": chat_id, "message_id": message_id, "text": text}
         if keyboard:
             params["reply_markup"] = keyboard
+        if entities:
+            params["entities"] = entities
         api_call("editMessageText", **params)
 
     if data == "pb":
