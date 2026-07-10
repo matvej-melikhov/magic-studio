@@ -777,25 +777,25 @@
         </div>
         <div class="toolbar">
           <span class="group">
-            <button data-block="# " title="Заголовок 1">H1</button>
-            <button data-block="## " title="Заголовок 2">H2</button>
-            <button data-block="### " title="Заголовок 3">H3</button>
-            <button data-block="#### " title="Заголовок 4">H4</button>
-            <button data-block="##### " title="Заголовок 5">H5</button>
-            <button data-block="###### " title="Заголовок 6">H6</button>
+            <button data-block="# " data-key="mod+alt+1" title="Заголовок 1">H1</button>
+            <button data-block="## " data-key="mod+alt+2" title="Заголовок 2">H2</button>
+            <button data-block="### " data-key="mod+alt+3" title="Заголовок 3">H3</button>
+            <button data-block="#### " data-key="mod+alt+4" title="Заголовок 4">H4</button>
+            <button data-block="##### " data-key="mod+alt+5" title="Заголовок 5">H5</button>
+            <button data-block="###### " data-key="mod+alt+6" title="Заголовок 6">H6</button>
           </span>
           <span class="group">
-            <button data-wrap="**" title="Жирный"><b>B</b></button>
-            <button data-wrap="_" title="Курсив"><i>I</i></button>
-            <button data-wrap="~~" title="Зачёркнутый"><s>S</s></button>
-            <button data-before="&lt;u&gt;" data-after="&lt;/u&gt;" title="Подчёркнутый"><u>U</u></button>
-            <button data-before="&lt;sub&gt;" data-after="&lt;/sub&gt;" title="Подстрочный">x₂</button>
-            <button data-before="&lt;sup&gt;" data-after="&lt;/sup&gt;" title="Надстрочный">x²</button>
-            <button data-wrap="==" title="Маркер"><mark style="background:#FDE68A;border-radius:2px;padding:0 3px;color:#1C242C">M</mark></button>
-            <button data-wrap="||" title="Спойлер — скрытый текст">
+            <button data-wrap="**" data-key="mod+b" title="Жирный"><b>B</b></button>
+            <button data-wrap="_" data-key="mod+i" title="Курсив"><i>I</i></button>
+            <button data-wrap="~~" data-key="mod+shift+x" title="Зачёркнутый"><s>S</s></button>
+            <button data-before="&lt;u&gt;" data-after="&lt;/u&gt;" data-key="mod+u" title="Подчёркнутый"><u>U</u></button>
+            <button data-before="&lt;sub&gt;" data-after="&lt;/sub&gt;" data-key="mod+=" title="Подстрочный">x₂</button>
+            <button data-before="&lt;sup&gt;" data-after="&lt;/sup&gt;" data-key="mod+shift+=" title="Надстрочный">x²</button>
+            <button data-wrap="==" data-key="mod+shift+h" title="Маркер"><mark style="background:#FDE68A;border-radius:2px;padding:0 3px;color:#1C242C">M</mark></button>
+            <button data-wrap="||" data-key="mod+shift+p" title="Спойлер — скрытый текст">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.8 8c2.2-3.2 10.2-3.2 12.4 0-2.2 3.2-10.2 3.2-12.4 0z"/><circle cx="8" cy="8" r="1.7"/><line x1="3" y1="13.2" x2="13" y2="2.8"/></svg>
             </button>
-            <button data-wrap="`" title="Код в строке">&lt;/&gt;</button>
+            <button data-wrap="`" data-key="mod+shift+m" title="Код в строке">&lt;/&gt;</button>
             <span class="media-wrap">
               <button id="emojiBtn" title="Кастомные эмодзи — пришлите их боту, чтобы пополнить">
                 <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M5.4 9.4c.6 1 1.5 1.6 2.6 1.6s2-.6 2.6-1.6"/><circle cx="5.9" cy="6.3" r=".65" fill="currentColor" stroke="none"/><circle cx="10.1" cy="6.3" r=".65" fill="currentColor" stroke="none"/></svg>
@@ -1220,6 +1220,34 @@ document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener
   }
   else if (btn.dataset.snippet) insertBlock(btn.dataset.snippet, btn.dataset.ph);
 }));
+
+/* Горячие клавиши стилей: комбинация задаётся атрибутом data-key кнопки
+   (mod = Cmd на маке / Ctrl на остальных). В подсказку кнопки добавляется
+   обозначение сочетания. */
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+const hotkeyBtns = {};
+document.querySelectorAll('.toolbar button[data-key]').forEach(btn => {
+  hotkeyBtns[btn.dataset.key] = btn;
+  const parts = btn.dataset.key.split('+');
+  const label = parts.map((p, i) =>
+    p === 'mod' ? (isMac ? '⌘' : 'Ctrl')
+    : p === 'alt' ? (isMac ? '⌥' : 'Alt')
+    : p === 'shift' ? (isMac ? '⇧' : 'Shift')
+    : p.toUpperCase()
+  ).join(isMac ? '' : '+');
+  btn.title += ` — ${label}`;
+});
+md.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.metaKey && e.ctrlKey) return;
+  /* e.code не зависит от раскладки и от символов, которые даёт Alt на маке */
+  let key = e.code.startsWith('Key') ? e.code.slice(3).toLowerCase()
+          : e.code.startsWith('Digit') ? e.code.slice(5)
+          : e.code === 'Equal' ? '=' : '';
+  if (!key) return;
+  const combo = 'mod' + (e.altKey ? '+alt' : '') + (e.shiftKey ? '+shift' : '') + '+' + key;
+  const btn = hotkeyBtns[combo];
+  if (btn) { e.preventDefault(); btn.click(); }
+});
 
 /* Сноска: [^N] в тексте + определение в конце, нумерация автоматическая */
 $('footnoteBtn').addEventListener('click', () => {
