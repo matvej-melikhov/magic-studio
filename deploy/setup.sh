@@ -7,7 +7,7 @@ REPO_URL="${1:?Укажите URL git-репозитория первым арг
 APP_DIR=/opt/markdown-bot
 
 apt-get update -qq
-apt-get install -y -qq git python3 python3-venv
+apt-get install -y -qq git python3 python3-venv rsync nginx
 
 id -u markdown &>/dev/null || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin markdown
 
