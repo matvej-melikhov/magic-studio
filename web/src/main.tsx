@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createBrowserRouter, Navigate } from 'react-router-dom';
 import App from './App';
+import EditorView from './components/editor/EditorView';
 import DraftsView from './components/lists/DraftsView';
 import ScheduledView from './components/lists/ScheduledView';
 import ChannelsView from './components/lists/ChannelsView';
@@ -19,16 +20,7 @@ const router = createBrowserRouter(
       element: <App />,
       children: [
         { index: true, element: <Navigate to="/editor" replace /> },
-        {
-          path: 'editor',
-          element: (
-            <section className="view active" id="view-editor">
-              <div className="page"><h2>Редактор</h2>
-                <div className="empty-state">Переносится в фазе 2</div>
-              </div>
-            </section>
-          ),
-        },
+        { path: 'editor', element: <EditorView /> },
         { path: 'drafts', element: <DraftsView /> },
         { path: 'scheduled', element: <ScheduledView /> },
         { path: 'channels', element: <ChannelsView /> },

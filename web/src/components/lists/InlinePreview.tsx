@@ -1,15 +1,20 @@
-/* Инлайн-предпросмотр поста в списках. До фазы 2 (порт рендерера
-   buildContentHtml) показывает сырой markdown; после — точный рендер. */
+import { useEffect, useRef } from 'react';
+import { mathStore, buildContentHtml, applyMath } from '../../lib/preview';
+
+/* Инлайн-предпросмотр поста в списках: тот же дословно портированный
+   рендерер, что и в редакторе (innerHTML + KaTeX + медиа-виджеты) */
 export default function InlinePreview({ markdown }: { markdown: string }) {
-  return (
-    <div className="sched-preview">
-      <div className="bubble">
-        <div className="content">
-          {markdown
-            ? <pre style={{ whiteSpace: 'pre-wrap', font: 'inherit', margin: 0 }}>{markdown}</pre>
-            : <div className="empty">Пост пустой</div>}
-        </div>
-      </div>
-    </div>
-  );
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    mathStore.length = 0;
+    box.innerHTML = '<div class="bubble"><div class="content">' +
+      (buildContentHtml(markdown) || '<div class="empty">Пост пустой</div>') +
+      '</div></div>';
+    applyMath(box);
+  }, [markdown]);
+
+  return <div className="sched-preview" ref={ref} />;
 }
