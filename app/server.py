@@ -55,8 +55,12 @@ LITTERBOX_API = "https://litterbox.catbox.moe/resources/internals/api.php"
 # Через сколько секунд зависший «sending» считается прерванным
 SENDING_STALE_AFTER = 180
 
-# ── AI-помощник: локальная модель через Ollama ──────
+# ── AI-помощник: Ollama ─────────────────────────────
+# Без ключа — локальный демон (OLLAMA_URL=http://localhost:11434).
+# С OLLAMA_API_KEY — облако ollama.com напрямую, демон не нужен:
+#   OLLAMA_URL=https://ollama.com  OLLAMA_API_KEY=<ключ из settings/keys>
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_API_KEY = os.environ.get("OLLAMA_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "gemma4:12b-mlx")
 
 # Шпаргалка по rich-формату — общая часть системного промпта
@@ -105,9 +109,11 @@ def ai_stream(action: str, text: str):
     if not system:
         yield {"error": "Неизвестное действие."}
         return
+    headers = {"Authorization": f"Bearer {OLLAMA_API_KEY}"} if OLLAMA_API_KEY else {}
     try:
         with requests.post(
             f"{OLLAMA_URL}/api/chat",
+            headers=headers,
             json={
                 "model": AI_MODEL,
                 "stream": True,
