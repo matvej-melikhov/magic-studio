@@ -9,3 +9,4 @@ __pycache__/
 studio.db
 studio.db-*
 data.json.imported
+*.log
