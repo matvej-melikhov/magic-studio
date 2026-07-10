@@ -12,6 +12,7 @@ import time
 
 import requests
 
+import storage
 from env_utils import load_env
 
 load_env()
@@ -31,7 +32,8 @@ HELP_TEXT = (
     "я отправлю его обратно в новом rich-формате Telegram.\n\n"
     "Поддерживается GitHub Flavored Markdown: заголовки, цитаты, ссылки, "
     "формулы ($x^2$ и $$E=mc^2$$), списки, таблицы, сноски и другое.\n\n"
-    "/login — код входа в веб-редактор\n\n"
+    "/login — код входа в веб-редактор\n"
+    "Сообщение с кастомными эмодзи — сохраню их для вставки в редакторе.\n\n"
     "Публикация в канал:\n"
     "/post @канал — следующее сообщение или файл уйдёт в канал\n"
     "/post — то же с последним использованным каналом\n"
@@ -146,6 +148,35 @@ def download_document(document: dict) -> str | None:
         return None
 
 
+def _utf16_slice(s: str, offset: int, length: int) -> str:
+    """Вырезает кусок строки по офсетам Telegram (они в UTF-16 code units)."""
+    b = s.encode("utf-16-le")
+    return b[offset * 2:(offset + length) * 2].decode("utf-16-le", "ignore")
+
+
+def handle_custom_emojis(message: dict) -> bool:
+    """Сохраняет кастомные эмодзи из сообщения; True — если они там были."""
+    text = message.get("text", "")
+    custom = [(e["custom_emoji_id"],
+               _utf16_slice(text, e["offset"], e["length"]))
+              for e in message.get("entities") or []
+              if e.get("type") == "custom_emoji"]
+    if not custom:
+        return False
+    unique: dict[str, str] = {}
+    for eid, alt in custom:
+        unique.setdefault(eid, alt or "🙂")
+    storage.emojis_add(message.get("from", {}).get("id", 0), list(unique.items()))
+    snippets = "\n".join(
+        f"![{alt}](tg://emoji?id={eid})" for eid, alt in unique.items())
+    send_plain(
+        message["chat"]["id"],
+        f"Сохранил кастомные эмодзи: {len(unique)}. Они появились в веб-редакторе "
+        f"(кнопка со смайликом), а для ручной вставки разметка такая:\n\n{snippets}",
+    )
+    return True
+
+
 def resolve_target(chat_id: int) -> "int | str":
     """Куда отправлять пост: канал, если ожидается публикация, иначе сам чат."""
     state = post_state.get(chat_id)
@@ -224,6 +255,11 @@ def handle_message(message: dict):
             post_state.get(chat_id, {}).pop("pending", None)
             send_plain(chat_id, "Публикация отменена.")
         else:
+            # сообщение с кастомными эмодзи — импорт в библиотеку редактора,
+            # но не тогда, когда пользователь публикует пост через /post
+            if not post_state.get(chat_id, {}).get("pending") and \
+                    handle_custom_emojis(message):
+                return
             send_rich_markdown(resolve_target(chat_id), text, chat_id)
         return
 
@@ -262,6 +298,7 @@ def main():
     ok, me = api_call("getMe")
     if not ok:
         sys.exit(f"Токен не принят Telegram: {me}")
+    storage.init_db()
     log.info("Запущен бот @%s", me.get("username"))
 
     offset = 0

@@ -296,6 +296,38 @@ def resolve_media(markdown: str) -> tuple[bool, str]:
     return True, resolved
 
 
+# Кэш картинок кастомных эмодзи: id -> (bytes, content-type)
+EMOJI_CACHE: dict[str, tuple[bytes, str]] = {}
+
+
+def fetch_emoji_image(emoji_id: str) -> tuple[bytes, str] | None:
+    """Скачивает превью кастомного эмодзи через Bot API (с кэшем в памяти)."""
+    if emoji_id in EMOJI_CACHE:
+        return EMOJI_CACHE[emoji_id]
+    ok, stickers = api_call("getCustomEmojiStickers", custom_emoji_ids=[emoji_id])
+    if not ok or not stickers:
+        return None
+    st = stickers[0]
+    # у анимированных (tgs/webm) берём статичную миниатюру
+    if (st.get("is_animated") or st.get("is_video")) and st.get("thumbnail"):
+        file_id = st["thumbnail"]["file_id"]
+    else:
+        file_id = st["file_id"]
+    ok, info = api_call("getFile", file_id=file_id)
+    if not ok:
+        return None
+    resp = requests.get(f"{FILE_URL}/{info['file_path']}", timeout=60)
+    if not resp.ok:
+        return None
+    ext = os.path.splitext(info["file_path"])[1].lower()
+    ctype = {".webp": "image/webp", ".png": "image/png",
+             ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(ext)
+    if not ctype:  # .tgs без миниатюры и прочая экзотика — не рисуем
+        return None
+    EMOJI_CACHE[emoji_id] = (resp.content, ctype)
+    return EMOJI_CACHE[emoji_id]
+
+
 def check_token_leak(sent_message: dict):
     """Проверяет, что исходные URL медиа не попали в доставленное сообщение."""
     if "api.telegram.org/file" in json.dumps(sent_message):
@@ -401,6 +433,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, b"editor.html not found", "text/plain")
                 return
             self._send(200, body, "text/html; charset=utf-8")
+        elif self.path == "/api/emojis":
+            session = self._session()
+            if not session:
+                self._json({"ok": False, "error": "auth"}, 401)
+                return
+            self._json({"ok": True,
+                        "emojis": storage.emojis_list(session["user_id"])})
+        elif self.path.startswith("/api/emoji/img"):
+            # без сессии: <img> не умеет слать заголовки; отдаём только картинку
+            emoji_id = (re.search(r"id=(\d{1,32})$", self.path) or [None, ""])[1]
+            img = fetch_emoji_image(emoji_id) if emoji_id else None
+            if img:
+                self._send(200, img[0], img[1])
+            else:
+                self._send(404, b"emoji not found", "text/plain")
         elif self.path in self.STATIC_FILES:
             name, ctype = self.STATIC_FILES[self.path]
             path = os.path.join(os.path.dirname(EDITOR_FILE), name)

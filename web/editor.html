@@ -205,6 +205,20 @@
   .media-menu button:hover { background: var(--bg); }
   .media-menu button + button { border-top: 1px solid var(--line-soft); }
   .toolbar .group button i { font-family: Georgia, serif; }
+  .emoji-menu {
+    display: grid; grid-template-columns: repeat(6, 38px); gap: 2px; padding: 8px;
+    max-height: 240px; overflow-y: auto;
+  }
+  .emoji-menu .em {
+    width: auto; padding: 5px; border-radius: 6px; display: grid; place-items: center;
+    border-right: none !important; border-top: none !important;
+  }
+  .emoji-menu .em img { width: 26px; height: 26px; display: block; }
+  .emoji-menu .em:hover { background: var(--bg); }
+  .emoji-hint {
+    grid-column: 1 / -1; padding: 8px 10px; font-size: 12.5px;
+    color: var(--muted); line-height: 1.5; max-width: 220px;
+  }
 
   #md {
     flex: 1; width: 100%; padding: 10px 20px 16px; border: none; outline: none;
@@ -411,6 +425,10 @@
   }
   .bubble aside cite { display: block; font-size: 13px; margin-top: 4px; }
   .bubble .tgtime { color: inherit; }
+  .bubble .cemoji {
+    width: 20px; height: 20px; margin: 0; display: inline-block;
+    vertical-align: -4px; background: none;
+  }
   .bubble .lang {
     display: block; font-size: 10.5px; color: var(--tg-sub);
     text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px;
@@ -772,6 +790,12 @@
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.8 8c2.2-3.2 10.2-3.2 12.4 0-2.2 3.2-10.2 3.2-12.4 0z"/><circle cx="8" cy="8" r="1.7"/><line x1="3" y1="13.2" x2="13" y2="2.8"/></svg>
             </button>
             <button data-wrap="`" title="Код в строке">&lt;/&gt;</button>
+            <span class="media-wrap">
+              <button id="emojiBtn" title="Кастомные эмодзи — пришлите их боту, чтобы пополнить">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M5.4 9.4c.6 1 1.5 1.6 2.6 1.6s2-.6 2.6-1.6"/><circle cx="5.9" cy="6.3" r=".65" fill="currentColor" stroke="none"/><circle cx="10.1" cy="6.3" r=".65" fill="currentColor" stroke="none"/></svg>
+              </button>
+              <span class="media-menu emoji-menu" id="emojiMenu" hidden></span>
+            </span>
           </span>
           <span class="group">
             <button data-block="> " title="Цитата">
@@ -1249,10 +1273,34 @@ function toggleDropdown(menu, btn) {
     window.innerWidth - menu.offsetWidth - 8)) + 'px';
 }
 
+/* ── Кастомные эмодзи: пикер из сохранённых через бота ── */
+document.body.appendChild($('emojiMenu'));
+$('emojiBtn').addEventListener('click', async () => {
+  const menu = $('emojiMenu');
+  if (!menu.hidden) { menu.hidden = true; return; }
+  $('mediaMenu').hidden = true;
+  $('aiMenu').hidden = true;
+  const resp = await api('/api/emojis');
+  menu.innerHTML = (resp.ok && resp.emojis.length)
+    ? resp.emojis.map(e =>
+        `<button class="em" data-id="${esc(e.emoji_id)}" data-alt="${esc(e.alt)}" title="${esc(e.alt)}">` +
+        `<img src="api/emoji/img?id=${esc(e.emoji_id)}" alt="${esc(e.alt)}" loading="lazy"></button>`).join('')
+    : '<div class="emoji-hint">Пришлите боту сообщение с кастомными эмодзи — они появятся здесь. Эмодзи в постах видны всем, но вставлять их может учётка с Premium.</div>';
+  menu.querySelectorAll('.em').forEach(b => b.addEventListener('click', () => {
+    menu.hidden = true;
+    insert(`![${b.dataset.alt}](tg://emoji?id=${b.dataset.id})`, '', '');
+  }));
+  toggleDropdown(menu, $('emojiBtn'));
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#emojiMenu, #emojiBtn')) $('emojiMenu').hidden = true;
+});
+
 /* ── Медиа: одна кнопка с меню «файл / по ссылке» ── */
 $('mediaBtn').addEventListener('click', () => {
   toggleDropdown($('mediaMenu'), $('mediaBtn'));
   $('aiMenu').hidden = true;
+  $('emojiMenu').hidden = true;
 });
 document.addEventListener('click', e => {
   if (!e.target.closest('#mediaMenu, #mediaBtn')) $('mediaMenu').hidden = true;
@@ -1392,6 +1440,11 @@ function inline(text) {
   h = h.replace(/&lt;\/tg-spoiler&gt;/gi, '</span>');
   h = h.replace(/&lt;a name=&quot;[^&]*&quot;&gt;&lt;\/a&gt;/gi, '');
   // спец-сущности: кастомные эмодзи и дата-время
+  // кастомные эмодзи: настоящая картинка через прокси сервера,
+  // при недоступности — запасной обычный эмодзи (alt)
+  h = h.replace(/!\[([^\]]*)\]\(tg:\/\/emoji\?id=(\d+)[^)]*\)/g,
+    '<img class="cemoji" src="api/emoji/img?id=$2" alt="$1" ' +
+    'onerror="this.outerHTML=this.alt">');
   h = h.replace(/!\[([^\]]*)\]\(tg:\/\/emoji[^)]*\)/g, '$1');
   h = h.replace(/!\[[^\]]*\]\(tg:\/\/time\?unix=(\d+)[^)]*\)/g, (_, ts) => {
     const d = new Date(+ts * 1000);
@@ -1452,7 +1505,7 @@ function attachMedia(root) {
       else { a.pause(); btn.innerHTML = PLAY_ICON; }
     });
   });
-  root.querySelectorAll('img').forEach(img => {
+  root.querySelectorAll('img:not(.cemoji)').forEach(img => {
     if (img.complete) return;
     img.classList.add('ph');
     img.addEventListener('load', () => {

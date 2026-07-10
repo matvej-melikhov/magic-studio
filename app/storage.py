@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS published (
     message_id INTEGER,
     when_ts    INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS emojis (
+    user_id  INTEGER NOT NULL,
+    emoji_id TEXT NOT NULL,
+    alt      TEXT NOT NULL DEFAULT '',
+    added    INTEGER NOT NULL,
+    PRIMARY KEY (user_id, emoji_id)
+);
 CREATE INDEX IF NOT EXISTS idx_drafts_user ON drafts(user_id, updated DESC);
 CREATE INDEX IF NOT EXISTS idx_sched_user ON scheduled(user_id, when_ts);
 CREATE INDEX IF NOT EXISTS idx_pub_user ON published(user_id, when_ts DESC);
@@ -156,6 +163,25 @@ def channel_remove(uid: int, username: str):
     with _db() as conn:
         conn.execute("DELETE FROM channels WHERE user_id=? AND username=?",
                      (uid, username))
+
+
+# ── Кастомные эмодзи ────────────────────────────────
+
+def emojis_add(uid: int, items: list[tuple[str, str]]):
+    """Сохраняет эмодзи пользователя: items = [(custom_emoji_id, alt), …]."""
+    now = int(time.time())
+    with _db() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO emojis VALUES (?,?,?,?)",
+            [(uid, eid, alt, now) for eid, alt in items])
+
+
+def emojis_list(uid: int) -> list[dict]:
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT emoji_id, alt FROM emojis WHERE user_id=? "
+            "ORDER BY added DESC LIMIT 200", (uid,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ── Черновики ───────────────────────────────────────
