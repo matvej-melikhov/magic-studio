@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161E29" media="(prefers-color-scheme: dark)">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>Студия постов</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -962,6 +962,8 @@ function toast(text, isError) {
 }
 async function api(url, body) {
   const headers = {'X-Session': localStorage.getItem('session') || ''};
+  // пути относительные: стенд может жить под префиксом (/dev/ за прокси)
+  url = url.replace(/^\//, '');
   try {
     const r = await fetch(url, body === undefined ? {headers} : {
       method: 'POST',
@@ -1301,7 +1303,7 @@ async function runAI(action, text, selStart, selEnd) {
     md.readOnly = true;
   };
   try {
-    const r = await fetch('/api/ai', {
+    const r = await fetch('api/ai', {
       method: 'POST',
       headers: {'X-Session': localStorage.getItem('session') || '',
                 'Content-Type': 'application/json'},

@@ -20,4 +20,13 @@ systemctl daemon-reload
 systemctl restart $UNITS
 sleep 2
 systemctl --no-pager --quiet is-active $UNITS
+
+# роутинг стендов (/prod, /dev) — если на сервере установлен nginx
+if command -v nginx >/dev/null && [ -d /etc/nginx/sites-available ]; then
+    cp deploy/nginx-stands.conf /etc/nginx/sites-available/stands.conf
+    ln -sf ../sites-available/stands.conf /etc/nginx/sites-enabled/stands.conf
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t -q && systemctl reload nginx
+fi
+
 echo "Deploy OK [$STAND]: $(date -u +%FT%TZ)"
