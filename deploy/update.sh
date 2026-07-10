@@ -17,6 +17,7 @@ chown -R markdown:markdown "$APP_DIR"
 # юниты могли измениться
 for u in $UNITS; do cp "deploy/$u.service" /etc/systemd/system/; done
 systemctl daemon-reload
+systemctl enable -q $UNITS   # автозагрузка после ребута сервера
 systemctl restart $UNITS
 sleep 2
 systemctl --no-pager --quiet is-active $UNITS
