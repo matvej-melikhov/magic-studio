@@ -948,9 +948,19 @@
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
+/* localStorage общий на весь origin, а стенды живут на /dev и /prod одного
+   хоста — поэтому каждый ключ получает префикс своего стенда, иначе логин
+   и черновики стендов затирали бы друг друга */
+const LS_SEG = location.pathname.split('/')[1] || '';
+const LS_PREFIX = LS_SEG ? LS_SEG + ':' : '';
+const store = {
+  get: k => localStorage.getItem(LS_PREFIX + k),
+  set: (k, v) => localStorage.setItem(LS_PREFIX + k, v),
+  del: k => localStorage.removeItem(LS_PREFIX + k),
+};
 const md = $('md');
 let state = { channels: [], drafts: [], scheduled: [], published: [] };
-let currentDraftId = localStorage.getItem('draftId') || null;
+let currentDraftId = store.get('draftId') || null;
 let toastTimer, previewTimer;
 
 function toast(text, isError) {
@@ -961,7 +971,7 @@ function toast(text, isError) {
   toastTimer = setTimeout(() => t.className = '', 3500);
 }
 async function api(url, body) {
-  const headers = {'X-Session': localStorage.getItem('session') || ''};
+  const headers = {'X-Session': store.get('session') || ''};
   // пути относительные: стенд может жить под префиксом (/dev/ за прокси)
   url = url.replace(/^\//, '');
   try {
@@ -985,7 +995,7 @@ function showLogin() {
   prepareTgLogin();
 }
 function logout() {
-  localStorage.removeItem('session');
+  store.del('session');
   showLogin();
 }
 $('mtopLogout').addEventListener('click', () => {
@@ -1019,7 +1029,7 @@ document.querySelector('#mtop .logo').addEventListener('click', () => {
 });
 function finishLogin(token) {
   stopLoginPoll();
-  localStorage.setItem('session', token);
+  store.set('session', token);
   $('login').classList.remove('open');
   $('loginError').textContent = '';
   toast('Вы вошли');
@@ -1092,12 +1102,12 @@ const fmtDate = ts => new Date(ts * 1000).toLocaleString('ru-RU',
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 /* ── Сворачивание бокового меню ── */
-if (localStorage.getItem('sideCollapsed') === '1')
+if (store.get('sideCollapsed') === '1')
   document.getElementById('app').classList.add('side-collapsed');
 $('sideToggle').addEventListener('click', () => {
   const app = document.getElementById('app');
   app.classList.toggle('side-collapsed');
-  localStorage.setItem('sideCollapsed',
+  store.set('sideCollapsed',
     app.classList.contains('side-collapsed') ? '1' : '0');
 });
 
@@ -1117,9 +1127,9 @@ msegBtns.forEach((b, i) => b.addEventListener('click', () => {
 }));
 
 /* ── Ввод и вставки ── */
-md.value = localStorage.getItem('draft') || '';
+md.value = store.get('draft') || '';
 md.addEventListener('input', () => {
-  localStorage.setItem('draft', md.value);
+  store.set('draft', md.value);
   if (!editingSched) $('draftState').textContent = '';
   clearTimeout(previewTimer);
   previewTimer = setTimeout(renderPreview, 250);
@@ -1138,7 +1148,7 @@ function insert(before, after, placeholder) {
   typeText(before + sel + after, s, e);
   md.selectionStart = s + before.length;
   md.selectionEnd = s + before.length + sel.length;
-  localStorage.setItem('draft', md.value);
+  store.set('draft', md.value);
   renderPreview();
 }
 /* Блочная вставка: с новой строки, один перенос в конце, выделение
@@ -1155,16 +1165,16 @@ function insertBlock(tpl, ph) {
     md.selectionStart = start;
     md.selectionEnd = start + sel.length;
   }
-  localStorage.setItem('draft', md.value);
+  store.set('draft', md.value);
   renderPreview();
 }
 
 /* Свёрнутая панель: видна первая строка, остальное по стрелке */
 const toolbarEl = document.querySelector('.toolbar');
-if (localStorage.getItem('toolsOpen') === '1') toolbarEl.classList.add('open');
+if (store.get('toolsOpen') === '1') toolbarEl.classList.add('open');
 $('toolsToggle').addEventListener('click', () => {
   toolbarEl.classList.toggle('open');
-  localStorage.setItem('toolsOpen', toolbarEl.classList.contains('open') ? '1' : '0');
+  store.set('toolsOpen', toolbarEl.classList.contains('open') ? '1' : '0');
 });
 
 document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener('click', () => {
@@ -1176,7 +1186,7 @@ document.querySelectorAll('.toolbar button').forEach(btn => btn.addEventListener
     typeText(btn.dataset.block, lineStart, lineStart);
     const shift = btn.dataset.block.length;
     md.setSelectionRange(pos + shift, pos + shift);
-    localStorage.setItem('draft', md.value); renderPreview();
+    store.set('draft', md.value); renderPreview();
   }
   else if (btn.dataset.snippet) insertBlock(btn.dataset.snippet, btn.dataset.ph);
 }));
@@ -1190,7 +1200,7 @@ $('footnoteBtn').addEventListener('click', () => {
   const end = md.value.replace(/\s+$/, '').length;
   typeText(`\n[^${n}]: Текст сноски`, end, md.value.length);
   md.setSelectionRange(pos + `[^${n}]`.length, pos + `[^${n}]`.length);
-  localStorage.setItem('draft', md.value);
+  store.set('draft', md.value);
   renderPreview();
 });
 
@@ -1305,7 +1315,7 @@ async function runAI(action, text, selStart, selEnd) {
   try {
     const r = await fetch('api/ai', {
       method: 'POST',
-      headers: {'X-Session': localStorage.getItem('session') || '',
+      headers: {'X-Session': store.get('session') || '',
                 'Content-Type': 'application/json'},
       body: JSON.stringify({action, text}),
     });
@@ -1337,7 +1347,7 @@ async function runAI(action, text, selStart, selEnd) {
   md.readOnly = false;
   aiBusy = false;
   $('aiBtn').classList.remove('ai-busy');
-  localStorage.setItem('draft', md.value);
+  store.set('draft', md.value);
   renderPreview();
 }
 
@@ -1697,13 +1707,13 @@ async function refresh() {
 }
 function renderTargets() {
   const sel = $('target');
-  const cur = sel.value || localStorage.getItem('target') || '';
+  const cur = sel.value || store.get('target') || '';
   sel.innerHTML = '<option value="">Куда публиковать…</option>' +
     state.channels.map(c =>
       `<option value="${esc(c.username)}">${esc(c.title)} (${esc(c.username)})</option>`).join('');
   sel.value = cur;
 }
-$('target').addEventListener('change', () => localStorage.setItem('target', $('target').value));
+$('target').addEventListener('change', () => store.set('target', $('target').value));
 
 /* ── Черновики ── */
 function renderDrafts() {
@@ -1727,9 +1737,9 @@ function renderDrafts() {
       if (e.target.closest('[data-del]')) return;
       const d = state.drafts.find(x => x.id === id);
       md.value = d.markdown;
-      localStorage.setItem('draft', d.markdown);
+      store.set('draft', d.markdown);
       currentDraftId = id;
-      localStorage.setItem('draftId', id);
+      store.set('draftId', id);
       $('draftState').textContent = 'черновик загружен';
       document.querySelector('#mainNav button[data-view=editor]').click();
       renderPreview();
@@ -1745,8 +1755,8 @@ $('newPostBtn').addEventListener('click', () => {
   if (md.value.trim() && !confirm('Очистить редактор? Несохранённый текст пропадёт.')) return;
   md.value = '';
   currentDraftId = null;
-  localStorage.removeItem('draftId');
-  localStorage.setItem('draft', '');
+  store.del('draftId');
+  store.set('draft', '');
   $('draftState').textContent = '';
   renderPreview();
   md.focus();
@@ -1756,7 +1766,7 @@ $('saveDraftBtn').addEventListener('click', async () => {
   const resp = await api('/api/drafts/save', {id: currentDraftId, markdown: md.value});
   if (resp.ok) {
     currentDraftId = resp.id;
-    localStorage.setItem('draftId', resp.id);
+    store.set('draftId', resp.id);
     $('draftState').textContent = 'сохранено';
     toast('Черновик сохранён');
     refresh();
@@ -1765,7 +1775,7 @@ $('saveDraftBtn').addEventListener('click', async () => {
 
 /* ── Отложенные ── */
 let publishedShown = 10;
-let schedFilter = localStorage.getItem('schedFilter') || '';
+let schedFilter = store.get('schedFilter') || '';
 
 function countdownText(when) {
   const left = Math.max(0, when - Math.floor(Date.now() / 1000));
@@ -1837,7 +1847,7 @@ function renderScheduled() {
   const filterSel = $('schedFilter');
   if (filterSel) filterSel.addEventListener('change', () => {
     schedFilter = filterSel.value;
-    localStorage.setItem('schedFilter', schedFilter);
+    store.set('schedFilter', schedFilter);
     publishedShown = 10;
     renderScheduled();
   });
@@ -1984,7 +1994,7 @@ function openSheet(mode) {
   $('sheetOk').textContent = conf.ok;
   $('scheduleTime').style.display = conf.time ? '' : 'none';
   $('target').value = (mode === 'edit' && editingSched)
-    ? editingSched.target : (localStorage.getItem('target') || '');
+    ? editingSched.target : (store.get('target') || '');
   const base = (mode === 'edit' && editingSched)
     ? new Date(editingSched.when * 1000) : new Date(Date.now() + 3600 * 1000);
   base.setMinutes(base.getMinutes() - base.getTimezoneOffset());
@@ -2024,7 +2034,7 @@ function startEditingPub(post) {
   editingPub = post;
   stopEditingSchedState();
   md.value = post.markdown;
-  localStorage.setItem('draft', post.markdown);
+  store.set('draft', post.markdown);
   $('publishBtn').innerHTML = 'Сохранить в ' + esc(post.target);
   $('draftState').innerHTML = 'правка публикации · <a href="#" id="cancelEdit">отменить</a>';
   $('cancelEdit').addEventListener('click', e => { e.preventDefault(); stopAllEditing(); });
@@ -2045,7 +2055,7 @@ function startEditingSched(post) {
   editingSched = post;
   editingPub = null;
   md.value = post.markdown;
-  localStorage.setItem('draft', post.markdown);
+  store.set('draft', post.markdown);
   $('publishBtn').innerHTML = 'Сохранить изменения';
   $('draftState').innerHTML = 'правка отложенного · <a href="#" id="cancelEdit">отменить</a>';
   $('cancelEdit').addEventListener('click', e => { e.preventDefault(); stopEditingSched(); });
