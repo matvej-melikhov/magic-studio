@@ -47,10 +47,12 @@ BOT_USERNAME = ""  # заполняется в main() из getMe
 # Плейсхолдер картинки в markdown-черновике
 TG_FILE_RE = re.compile(r"tg-file://([A-Za-z0-9_-]+)")
 
-# Одноразовый хостинг-трамплин: серверы Telegram не могут скачивать напрямую
-# из сетей Selectel, поэтому при публикации медиа перезаливается на litterbox
-# (живёт 1 час — Telegram перехостит картинку у себя в момент отправки)
+# Одноразовый хостинг-трамплин: перезаливка медиа, которые серверы Telegram
+# не могут скачать сами (файлы из хранилища Telegram; S3 — только если
+# включён S3_TRAMPOLINE=1, это нужно для недоступных Telegram хостингов
+# вроде Selectel; Yandex Object Storage доступен напрямую)
 LITTERBOX_API = "https://litterbox.catbox.moe/resources/internals/api.php"
+S3_TRAMPOLINE = os.environ.get("S3_TRAMPOLINE", "0") == "1"
 
 # Через сколько секунд зависший «sending» считается прерванным
 SENDING_STALE_AFTER = 180
@@ -275,7 +277,7 @@ def resolve_media(markdown: str) -> tuple[bool, str]:
 
     resolved = TG_FILE_RE.sub(repl_tg_file, markdown)
 
-    if s3.configured and s3.public_base:
+    if s3.configured and s3.public_base and S3_TRAMPOLINE:
         s3_url_re = re.compile(re.escape(s3.public_base) + r"/[^\s\)\"]+")
 
         def repl_s3(match):
