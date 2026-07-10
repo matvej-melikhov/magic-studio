@@ -10,3 +10,5 @@ studio.db
 studio.db-*
 data.json.imported
 *.log
+venv
+.claude
