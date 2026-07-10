@@ -13,24 +13,36 @@ app/        Python-код
   storage.py     SQLite-хранилище (studio.db)
   s3_utils.py    загрузка медиа в S3 (ручная подпись SigV4, без boto3)
   env_utils.py   чтение .env
-web/        Фронтенд
-  editor.html    весь веб-редактор (один файл)
-  manifest.json  PWA-манифест + иконки приложения
+web/        Фронтенд — React SPA (Vite + TypeScript + React Router + Zustand)
+  src/           компоненты, сторы, дословно портированный рендерер предпросмотра
+  public/        PWA-манифест + иконки приложения
+  dist/          сборка (создаётся npm run build, в git не попадает)
+  editor.html    прежний однофайловый редактор — fallback, если dist/ нет
 deploy/     systemd-юниты и скрипты развёртывания (prod и dev)
 .github/    CI/CD: деплой dev по push в ветку dev, prod — по тегу v*
+            (фронтенд собирается в CI, на сервер уезжает готовый dist/)
 ```
 
 Рабочие файлы (`.env`, `studio.db*`, `state.json`, `login_codes.json`)
 живут в корне, в git не попадают и деплоем не перезаписываются.
+
+Роутинг: разделы `/editor`, `/drafts`, `/scheduled`, `/channels` — SPA без
+перезагрузок; сервер отдаёт приложение на любом из этих путей, поэтому
+обновление страницы оставляет пользователя в текущем разделе.
 
 ## Локальный запуск
 
 ```bash
 pip install -r requirements.txt
 cp .env.example .env   # или создайте .env: TELEGRAM_KEY=<токен от @BotFather>
+(cd web && npm ci && npm run build)  # собрать фронтенд (без сборки отдаётся editor.html)
 python3 app/bot.py     # бот (в отдельном терминале)
 python3 app/server.py  # веб-редактор на http://localhost:8080
 ```
+
+Разработка фронтенда с горячей перезагрузкой: `cd web && npm run dev`
+(vite dev-сервер на :5173, API проксируется в server.py на :8080).
+Тесты фронтенда: `cd web && npm test` (снапшоты рендерера предпросмотра).
 
 Вход в редактор — через Telegram (deep-link на бота) или по коду `/login`.
 
