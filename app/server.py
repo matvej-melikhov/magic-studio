@@ -438,8 +438,14 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 self._json({"ok": False, "error": "auth"}, 401)
                 return
-            self._json({"ok": True,
-                        "emojis": storage.emojis_list(session["user_id"])})
+            uid = session["user_id"]
+            groups = [{"id": g["id"], "name": g["name"],
+                       "emojis": storage.emojis_by_group(uid, g["id"])}
+                      for g in storage.egroups_list(uid)]
+            ungrouped = storage.emojis_by_group(uid, None)
+            if ungrouped:
+                groups.append({"id": 0, "name": "", "emojis": ungrouped})
+            self._json({"ok": True, "groups": groups})
         elif self.path.startswith("/api/emoji/img"):
             # без сессии: <img> не умеет слать заголовки; отдаём только картинку
             emoji_id = (re.search(r"id=(\d{1,32})$", self.path) or [None, ""])[1]

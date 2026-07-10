@@ -219,6 +219,10 @@
     grid-column: 1 / -1; padding: 8px 10px; font-size: 12.5px;
     color: var(--muted); line-height: 1.5; max-width: 220px;
   }
+  .egroup {
+    grid-column: 1 / -1; font-size: 10.5px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em; padding: 7px 6px 2px;
+  }
 
   #md {
     flex: 1; width: 100%; padding: 10px 20px 16px; border: none; outline: none;
@@ -1281,12 +1285,17 @@ $('emojiBtn').addEventListener('click', async () => {
   $('mediaMenu').hidden = true;
   $('aiMenu').hidden = true;
   const resp = await api('/api/emojis');
-  menu.innerHTML = (resp.ok && resp.emojis.length)
-    ? resp.emojis.map(e =>
-        `<button class="em" data-id="${esc(e.emoji_id)}" data-alt="${esc(e.alt)}" title="${esc(e.alt)}">` +
-        `<img src="api/emoji/img?id=${esc(e.emoji_id)}" alt="${esc(e.alt)}" loading="lazy" ` +
-        `onerror="this.closest('button').remove()"></button>`).join('')
-    : '<div class="emoji-hint">Пришлите боту сообщение с кастомными эмодзи — они появятся здесь. Эмодзи в постах видны всем, но вставлять их может учётка с Premium.</div>';
+  const groups = (resp.ok && resp.groups) || [];
+  const emBtn = e =>
+    `<button class="em" data-id="${esc(e.emoji_id)}" data-alt="${esc(e.alt)}" title="${esc(e.alt)}">` +
+    `<img src="api/emoji/img?id=${esc(e.emoji_id)}" alt="${esc(e.alt)}" loading="lazy" ` +
+    `onerror="this.closest('button').remove()"></button>`;
+  menu.innerHTML = groups.length
+    ? groups.map(g =>
+        (g.name ? `<div class="egroup">${esc(g.name)}</div>`
+                : (groups.length > 1 ? '<div class="egroup">Без группы</div>' : '')) +
+        g.emojis.map(emBtn).join('')).join('')
+    : '<div class="emoji-hint">Пришлите боту сообщение с кастомными эмодзи — они появятся здесь. Коллекции: команда /emoji в боте.</div>';
   menu.querySelectorAll('.em').forEach(b => b.addEventListener('click', () => {
     menu.hidden = true;
     insert(`![${b.dataset.alt}](tg://emoji?id=${b.dataset.id})`, '', '');

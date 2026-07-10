@@ -33,6 +33,7 @@ HELP_TEXT = (
     "Поддерживается GitHub Flavored Markdown: заголовки, цитаты, ссылки, "
     "формулы ($x^2$ и $$E=mc^2$$), списки, таблицы, сноски и другое.\n\n"
     "/login — код входа в веб-редактор\n"
+    "/emoji — коллекции кастомных эмодзи для редактора\n"
     "Сообщение с кастомными эмодзи — сохраню их для вставки в редакторе.\n\n"
     "Публикация в канал:\n"
     "/post @канал — следующее сообщение или файл уйдёт в канал\n"
@@ -154,6 +155,65 @@ def _utf16_slice(s: str, offset: int, length: int) -> str:
     return b[offset * 2:(offset + length) * 2].decode("utf-16-le", "ignore")
 
 
+# ── Менеджер эмодзи: коллекции с инлайн-кнопками ────
+# Состояние диалога: chat_id -> {"awaiting": …, "pending_ids": […]}
+emoji_state: dict[int, dict] = {}
+
+MAX_GROUP_NAME = 40
+
+
+def kb(rows: list) -> dict:
+    return {"inline_keyboard": rows}
+
+
+def manager_view(uid: int) -> tuple[str, dict]:
+    """Главный экран менеджера: список групп."""
+    rows = [[{"text": f"📁 {g['name']} ({g['count']})",
+              "callback_data": f"g:{g['id']}"}]
+            for g in storage.egroups_list(uid)]
+    ungrouped = len(storage.emojis_by_group(uid, None))
+    if ungrouped:
+        rows.append([{"text": f"📂 Без группы ({ungrouped})", "callback_data": "g:0"}])
+    rows.append([{"text": "➕ Новая группа", "callback_data": "gnew"}])
+    text = ("Коллекции эмодзи. Выберите группу для просмотра и правки.\n"
+            "Пополнение: просто пришлите сообщение с кастомными эмодзи.")
+    return text, kb(rows)
+
+
+def group_view(uid: int, gid: int) -> tuple[str, dict]:
+    """Экран группы: эмодзи-кнопки (тап — удалить) и управление группой."""
+    if gid:
+        name = next((g["name"] for g in storage.egroups_list(uid)
+                     if g["id"] == gid), "?")
+    else:
+        name = "Без группы"
+    emojis = storage.emojis_by_group(uid, gid or None)
+    text = (f"«{name}» — {len(emojis)} эмодзи.\n"
+            "Нажмите на эмодзи, чтобы удалить его из библиотеки.")
+    rows, row = [], []
+    for e in emojis:
+        row.append({"text": e["alt"], "callback_data": f"ed:{gid}:{e['emoji_id']}"})
+        if len(row) == 5:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    if gid:
+        rows.append([{"text": "✏️ Переименовать", "callback_data": f"gr:{gid}"},
+                     {"text": "🗑 Удалить группу", "callback_data": f"gd:{gid}"}])
+    rows.append([{"text": "⬅️ Назад", "callback_data": "gb"}])
+    return text, kb(rows)
+
+
+def import_keyboard(uid: int) -> dict:
+    """Выбор группы для только что присланных эмодзи."""
+    rows = [[{"text": f"📁 {g['name']}", "callback_data": f"imp:{g['id']}"}]
+            for g in storage.egroups_list(uid)]
+    rows.append([{"text": "📂 Без группы", "callback_data": "imp:0"},
+                 {"text": "➕ В новую группу", "callback_data": "impnew"}])
+    return kb(rows)
+
+
 def handle_custom_emojis(message: dict) -> bool:
     """Сохраняет кастомные эмодзи из сообщения; True — если они там были."""
     text = message.get("text", "")
@@ -166,15 +226,94 @@ def handle_custom_emojis(message: dict) -> bool:
     unique: dict[str, str] = {}
     for eid, alt in custom:
         unique.setdefault(eid, alt or "🙂")
-    storage.emojis_add(message.get("from", {}).get("id", 0), list(unique.items()))
-    snippets = "\n".join(
-        f"![{alt}](tg://emoji?id={eid})" for eid, alt in unique.items())
-    send_plain(
-        message["chat"]["id"],
-        f"Сохранил кастомные эмодзи: {len(unique)}. Они появились в веб-редакторе "
-        f"(кнопка со смайликом), а для ручной вставки разметка такая:\n\n{snippets}",
+    uid = message.get("from", {}).get("id", 0)
+    chat_id = message["chat"]["id"]
+    storage.emojis_add(uid, list(unique.items()))
+    emoji_state[chat_id] = {"pending_ids": list(unique)}
+    api_call(
+        "sendMessage",
+        chat_id=chat_id,
+        text=f"Сохранил эмодзи: {len(unique)}. В какую группу их положить?",
+        reply_markup=import_keyboard(uid),
     )
     return True
+
+
+def handle_awaited_text(message: dict) -> bool:
+    """Ответ на вопрос бота (название группы); True — если текст обработан."""
+    chat_id = message["chat"]["id"]
+    st = emoji_state.get(chat_id)
+    text = (message.get("text") or "").strip()
+    if not st or not st.get("awaiting") or not text or text.startswith("/"):
+        return False
+    uid = message.get("from", {}).get("id", 0)
+    name = text[:MAX_GROUP_NAME]
+    awaiting = st.pop("awaiting")
+    if awaiting == "newgroup":
+        storage.egroup_create(uid, name)
+        emoji_state.pop(chat_id, None)
+    elif awaiting == "impgroup":
+        gid = storage.egroup_create(uid, name)
+        storage.emojis_set_group(uid, st.get("pending_ids") or [], gid)
+        emoji_state.pop(chat_id, None)
+    elif awaiting.startswith("rename:"):
+        storage.egroup_rename(uid, int(awaiting.split(":")[1]), name)
+        emoji_state.pop(chat_id, None)
+    else:
+        return False
+    view, keyboard = manager_view(uid)
+    api_call("sendMessage", chat_id=chat_id, text=view, reply_markup=keyboard)
+    return True
+
+
+def handle_callback(cq: dict):
+    """Нажатия инлайн-кнопок менеджера эмодзи."""
+    data = cq.get("data", "")
+    msg = cq.get("message") or {}
+    chat_id = msg.get("chat", {}).get("id")
+    message_id = msg.get("message_id")
+    uid = cq.get("from", {}).get("id", 0)
+    ack = ""
+
+    def edit(text: str, keyboard: dict | None):
+        params = {"chat_id": chat_id, "message_id": message_id, "text": text}
+        if keyboard:
+            params["reply_markup"] = keyboard
+        api_call("editMessageText", **params)
+
+    if data == "gb":
+        edit(*manager_view(uid))
+    elif data == "gnew":
+        emoji_state[chat_id] = {"awaiting": "newgroup"}
+        send_plain(chat_id, "Название новой группы?")
+    elif data.startswith("g:"):
+        edit(*group_view(uid, int(data[2:])))
+    elif data.startswith("gr:"):
+        emoji_state[chat_id] = {"awaiting": f"rename:{data[3:]}"}
+        send_plain(chat_id, "Новое название группы?")
+    elif data.startswith("gd:"):
+        storage.egroup_delete(uid, int(data[3:]))
+        ack = "Группа удалена, её эмодзи — в «Без группы»"
+        edit(*manager_view(uid))
+    elif data.startswith("ed:"):
+        _, gid, eid = data.split(":", 2)
+        storage.emoji_delete(uid, eid)
+        ack = "Эмодзи удалён из библиотеки"
+        edit(*group_view(uid, int(gid)))
+    elif data == "impnew":
+        st = emoji_state.setdefault(chat_id, {})
+        st["awaiting"] = "impgroup"
+        send_plain(chat_id, "Название новой группы?")
+    elif data.startswith("imp:"):
+        st = emoji_state.pop(chat_id, None) or {}
+        ids = st.get("pending_ids") or []
+        gid = int(data[4:]) or None
+        if ids:
+            storage.emojis_set_group(uid, ids, gid)
+        edit(f"Готово — эмодзи разложены ({len(ids)}). "
+             "Они уже доступны в веб-редакторе.", None)
+        ack = "Сохранено"
+    api_call("answerCallbackQuery", callback_query_id=cq["id"], text=ack)
 
 
 def resolve_target(chat_id: int) -> "int | str":
@@ -249,12 +388,20 @@ def handle_message(message: dict):
                 f"Код входа в веб-редактор: {code}\n"
                 "Введите его на странице входа в течение 10 минут.",
             )
+        elif text.startswith("/emoji"):
+            uid = message.get("from", {}).get("id", 0)
+            view, keyboard = manager_view(uid)
+            api_call("sendMessage", chat_id=chat_id, text=view,
+                     reply_markup=keyboard)
         elif text.startswith("/post"):
             handle_post_command(chat_id, message.get("from", {}).get("id", 0), text)
         elif text.startswith("/cancel"):
             post_state.get(chat_id, {}).pop("pending", None)
             send_plain(chat_id, "Публикация отменена.")
         else:
+            # ответ на вопрос менеджера эмодзи (название группы)?
+            if handle_awaited_text(message):
+                return
             # сообщение с кастомными эмодзи — импорт в библиотеку редактора,
             # но не тогда, когда пользователь публикует пост через /post
             if not post_state.get(chat_id, {}).get("pending") and \
@@ -305,7 +452,8 @@ def main():
     while True:
         try:
             ok, updates = api_call(
-                "getUpdates", offset=offset, timeout=50, allowed_updates=["message"]
+                "getUpdates", offset=offset, timeout=50,
+                allowed_updates=["message", "callback_query"],
             )
         except requests.RequestException as e:
             log.warning("getUpdates network error: %s", e)
@@ -315,13 +463,13 @@ def main():
             continue
         for update in updates:
             offset = update["update_id"] + 1
-            message = update.get("message")
-            if not message:
-                continue
             try:
-                handle_message(message)
+                if update.get("callback_query"):
+                    handle_callback(update["callback_query"])
+                elif update.get("message"):
+                    handle_message(update["message"])
             except Exception:
-                log.exception("Ошибка обработки сообщения")
+                log.exception("Ошибка обработки обновления")
 
 
 if __name__ == "__main__":
