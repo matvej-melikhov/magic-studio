@@ -1284,7 +1284,8 @@ $('emojiBtn').addEventListener('click', async () => {
   menu.innerHTML = (resp.ok && resp.emojis.length)
     ? resp.emojis.map(e =>
         `<button class="em" data-id="${esc(e.emoji_id)}" data-alt="${esc(e.alt)}" title="${esc(e.alt)}">` +
-        `<img src="api/emoji/img?id=${esc(e.emoji_id)}" alt="${esc(e.alt)}" loading="lazy"></button>`).join('')
+        `<img src="api/emoji/img?id=${esc(e.emoji_id)}" alt="${esc(e.alt)}" loading="lazy" ` +
+        `onerror="this.closest('button').remove()"></button>`).join('')
     : '<div class="emoji-hint">Пришлите боту сообщение с кастомными эмодзи — они появятся здесь. Эмодзи в постах видны всем, но вставлять их может учётка с Premium.</div>';
   menu.querySelectorAll('.em').forEach(b => b.addEventListener('click', () => {
     menu.hidden = true;
