@@ -56,15 +56,17 @@ CREATE TABLE IF NOT EXISTS emojis (
     user_id  INTEGER NOT NULL,
     emoji_id TEXT NOT NULL,
     alt      TEXT NOT NULL DEFAULT '',
+    pack_id  INTEGER NOT NULL,
     added    INTEGER NOT NULL,
-    group_id INTEGER,
     PRIMARY KEY (user_id, emoji_id)
 );
-CREATE TABLE IF NOT EXISTS emoji_groups (
-    id      INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name    TEXT NOT NULL,
-    created INTEGER NOT NULL
+CREATE TABLE IF NOT EXISTS emoji_packs (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id  INTEGER NOT NULL,
+    set_name TEXT NOT NULL,
+    title    TEXT NOT NULL,
+    created  INTEGER NOT NULL,
+    UNIQUE (user_id, set_name)
 );
 CREATE INDEX IF NOT EXISTS idx_drafts_user ON drafts(user_id, updated DESC);
 CREATE INDEX IF NOT EXISTS idx_sched_user ON scheduled(user_id, when_ts);
@@ -81,11 +83,13 @@ def _db() -> sqlite3.Connection:
 
 def init_db():
     with _db() as conn:
-        conn.executescript(SCHEMA)
-        # миграция: колонка групп у эмодзи (таблица могла быть создана раньше)
+        # миграция: эмодзи раньше хранились с ручными группами; теперь
+        # коллекция = эмодзи-пак Telegram, старые данные переимпортируются
         cols = [r[1] for r in conn.execute("PRAGMA table_info(emojis)")]
-        if "group_id" not in cols:
-            conn.execute("ALTER TABLE emojis ADD COLUMN group_id INTEGER")
+        if cols and "pack_id" not in cols:
+            conn.execute("DROP TABLE emojis")
+            conn.execute("DROP TABLE IF EXISTS emoji_groups")
+        conn.executescript(SCHEMA)
     _migrate_legacy_json()
 
 
@@ -176,79 +180,56 @@ def channel_remove(uid: int, username: str):
                      (uid, username))
 
 
-# ── Кастомные эмодзи ────────────────────────────────
+# ── Кастомные эмодзи: коллекция = эмодзи-пак Telegram ───
 
-def emojis_add(uid: int, items: list[tuple[str, str]]):
-    """Сохраняет эмодзи пользователя: items = [(custom_emoji_id, alt), …].
+def epack_add(uid: int, set_name: str, title: str,
+              items: list[tuple[str, str]]) -> int:
+    """Сохраняет пак целиком: items = [(custom_emoji_id, alt), …].
 
-    Повторный импорт уже известного эмодзи не трогает его группу.
+    Повторный импорт обновляет название и дополняет состав. Возвращает id пака.
     """
     now = int(time.time())
     with _db() as conn:
+        conn.execute(
+            "INSERT INTO emoji_packs (user_id, set_name, title, created) "
+            "VALUES (?,?,?,?) "
+            "ON CONFLICT (user_id, set_name) DO UPDATE SET title=excluded.title",
+            (uid, set_name, title, now))
+        pack_id = conn.execute(
+            "SELECT id FROM emoji_packs WHERE user_id=? AND set_name=?",
+            (uid, set_name)).fetchone()["id"]
         conn.executemany(
-            "INSERT OR IGNORE INTO emojis (user_id, emoji_id, alt, added) "
-            "VALUES (?,?,?,?)",
-            [(uid, eid, alt, now) for eid, alt in items])
+            "INSERT OR REPLACE INTO emojis (user_id, emoji_id, alt, pack_id, added) "
+            "VALUES (?,?,?,?,?)",
+            [(uid, eid, alt, pack_id, now) for eid, alt in items])
+    return pack_id
 
 
-def emojis_by_group(uid: int, group_id: int | None) -> list[dict]:
-    with _db() as conn:
-        if group_id:
-            rows = conn.execute(
-                "SELECT emoji_id, alt FROM emojis WHERE user_id=? AND group_id=? "
-                "ORDER BY added DESC LIMIT 200", (uid, group_id)).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT emoji_id, alt FROM emojis WHERE user_id=? AND group_id IS NULL "
-                "ORDER BY added DESC LIMIT 200", (uid,)).fetchall()
-    return [dict(r) for r in rows]
-
-
-def emojis_set_group(uid: int, emoji_ids: list[str], group_id: int | None):
-    with _db() as conn:
-        conn.executemany(
-            "UPDATE emojis SET group_id=? WHERE user_id=? AND emoji_id=?",
-            [(group_id, uid, eid) for eid in emoji_ids])
-
-
-def emoji_delete(uid: int, emoji_id: str):
-    with _db() as conn:
-        conn.execute("DELETE FROM emojis WHERE user_id=? AND emoji_id=?",
-                     (uid, emoji_id))
-
-
-# ── Группы эмодзи ───────────────────────────────────
-
-def egroups_list(uid: int) -> list[dict]:
+def epacks_list(uid: int) -> list[dict]:
     with _db() as conn:
         rows = conn.execute(
-            "SELECT g.id, g.name, COUNT(e.emoji_id) AS count "
-            "FROM emoji_groups g LEFT JOIN emojis e "
-            "  ON e.group_id = g.id AND e.user_id = g.user_id "
-            "WHERE g.user_id=? GROUP BY g.id ORDER BY g.created", (uid,)).fetchall()
+            "SELECT p.id, p.title AS name, COUNT(e.emoji_id) AS count "
+            "FROM emoji_packs p LEFT JOIN emojis e "
+            "  ON e.pack_id = p.id AND e.user_id = p.user_id "
+            "WHERE p.user_id=? GROUP BY p.id ORDER BY p.created", (uid,)).fetchall()
     return [dict(r) for r in rows]
 
 
-def egroup_create(uid: int, name: str) -> int:
+def emojis_by_pack(uid: int, pack_id: int) -> list[dict]:
     with _db() as conn:
-        cur = conn.execute("INSERT INTO emoji_groups (user_id, name, created) "
-                           "VALUES (?,?,?)", (uid, name, int(time.time())))
-    return cur.lastrowid
+        rows = conn.execute(
+            "SELECT emoji_id, alt FROM emojis WHERE user_id=? AND pack_id=? "
+            "ORDER BY added, emoji_id LIMIT 200", (uid, pack_id)).fetchall()
+    return [dict(r) for r in rows]
 
 
-def egroup_rename(uid: int, group_id: int, name: str):
+def epack_delete(uid: int, pack_id: int):
+    """Удаляет коллекцию вместе со всеми её эмодзи."""
     with _db() as conn:
-        conn.execute("UPDATE emoji_groups SET name=? WHERE id=? AND user_id=?",
-                     (name, group_id, uid))
-
-
-def egroup_delete(uid: int, group_id: int):
-    """Удаляет группу; её эмодзи остаются в библиотеке без группы."""
-    with _db() as conn:
-        conn.execute("UPDATE emojis SET group_id=NULL WHERE user_id=? AND group_id=?",
-                     (uid, group_id))
-        conn.execute("DELETE FROM emoji_groups WHERE id=? AND user_id=?",
-                     (group_id, uid))
+        conn.execute("DELETE FROM emojis WHERE user_id=? AND pack_id=?",
+                     (uid, pack_id))
+        conn.execute("DELETE FROM emoji_packs WHERE id=? AND user_id=?",
+                     (pack_id, uid))
 
 
 # ── Черновики ───────────────────────────────────────

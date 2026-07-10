@@ -439,12 +439,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": "auth"}, 401)
                 return
             uid = session["user_id"]
-            groups = [{"id": g["id"], "name": g["name"],
-                       "emojis": storage.emojis_by_group(uid, g["id"])}
-                      for g in storage.egroups_list(uid)]
-            ungrouped = storage.emojis_by_group(uid, None)
-            if ungrouped:
-                groups.append({"id": 0, "name": "", "emojis": ungrouped})
+            groups = [{"id": p["id"], "name": p["name"],
+                       "emojis": storage.emojis_by_pack(uid, p["id"])}
+                      for p in storage.epacks_list(uid)]
             self._json({"ok": True, "groups": groups})
         elif self.path.startswith("/api/emoji/img"):
             # без сессии: <img> не умеет слать заголовки; отдаём только картинку

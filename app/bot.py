@@ -33,8 +33,8 @@ HELP_TEXT = (
     "Поддерживается GitHub Flavored Markdown: заголовки, цитаты, ссылки, "
     "формулы ($x^2$ и $$E=mc^2$$), списки, таблицы, сноски и другое.\n\n"
     "/login — код входа в веб-редактор\n"
-    "/emoji — коллекции кастомных эмодзи для редактора\n"
-    "Сообщение с кастомными эмодзи — сохраню их для вставки в редакторе.\n\n"
+    "/emoji — коллекции кастомных эмодзи для редактора: пришлите эмодзи, "
+    "и их паки добавятся целиком\n\n"
     "Публикация в канал:\n"
     "/post @канал — следующее сообщение или файл уйдёт в канал\n"
     "/post — то же с последним использованным каналом\n"
@@ -149,126 +149,86 @@ def download_document(document: dict) -> str | None:
         return None
 
 
-def _utf16_slice(s: str, offset: int, length: int) -> str:
-    """Вырезает кусок строки по офсетам Telegram (они в UTF-16 code units)."""
-    b = s.encode("utf-16-le")
-    return b[offset * 2:(offset + length) * 2].decode("utf-16-le", "ignore")
+# ── Менеджер эмодзи: коллекция = эмодзи-пак Telegram ────
+# Режим добавления паков: chat_id -> True (ждём сообщения с эмодзи)
+emoji_adding: dict[int, bool] = {}
 
-
-# ── Менеджер эмодзи: коллекции с инлайн-кнопками ────
-# Состояние диалога: chat_id -> {"awaiting": …, "pending_ids": […]}
-emoji_state: dict[int, dict] = {}
-
-MAX_GROUP_NAME = 40
+ADD_HINT = ("Пришлите сообщение с кастомными эмодзи (можно переслать чужое) — "
+            "я добавлю их паки целиком, по коллекции на пак.\n"
+            "Сообщений может быть несколько. Когда закончите — «Готово».")
 
 
 def kb(rows: list) -> dict:
     return {"inline_keyboard": rows}
 
 
+def done_keyboard() -> dict:
+    return kb([[{"text": "✅ Готово", "callback_data": "pdone"}]])
+
+
 def manager_view(uid: int) -> tuple[str, dict]:
-    """Главный экран менеджера: список групп."""
-    rows = [[{"text": f"📁 {g['name']} ({g['count']})",
-              "callback_data": f"g:{g['id']}"}]
-            for g in storage.egroups_list(uid)]
-    ungrouped = len(storage.emojis_by_group(uid, None))
-    if ungrouped:
-        rows.append([{"text": f"📂 Без группы ({ungrouped})", "callback_data": "g:0"}])
-    rows.append([{"text": "➕ Новая группа", "callback_data": "gnew"}])
-    text = ("Коллекции эмодзи. Выберите группу для просмотра и правки.\n"
-            "Пополнение: просто пришлите сообщение с кастомными эмодзи.")
+    """Главный экран менеджера: список коллекций (паков)."""
+    packs = storage.epacks_list(uid)
+    rows = [[{"text": f"📦 {p['name']} ({p['count']})",
+              "callback_data": f"p:{p['id']}"}]
+            for p in packs]
+    rows.append([{"text": "➕ Добавить паки", "callback_data": "padd"}])
+    text = ("Коллекции эмодзи для веб-редактора — по одной на эмодзи-пак."
+            if packs else
+            "Коллекций пока нет. Добавьте первую — понадобится любое "
+            "сообщение с кастомными эмодзи.")
     return text, kb(rows)
 
 
-def group_view(uid: int, gid: int) -> tuple[str, dict]:
-    """Экран группы: эмодзи-кнопки (тап — удалить) и управление группой."""
-    if gid:
-        name = next((g["name"] for g in storage.egroups_list(uid)
-                     if g["id"] == gid), "?")
-    else:
-        name = "Без группы"
-    emojis = storage.emojis_by_group(uid, gid or None)
-    text = (f"«{name}» — {len(emojis)} эмодзи.\n"
-            "Нажмите на эмодзи, чтобы удалить его из библиотеки.")
-    rows, row = [], []
-    for e in emojis:
-        row.append({"text": e["alt"], "callback_data": f"ed:{gid}:{e['emoji_id']}"})
-        if len(row) == 5:
-            rows.append(row)
-            row = []
-    if row:
-        rows.append(row)
-    if gid:
-        rows.append([{"text": "✏️ Переименовать", "callback_data": f"gr:{gid}"},
-                     {"text": "🗑 Удалить группу", "callback_data": f"gd:{gid}"}])
-    rows.append([{"text": "⬅️ Назад", "callback_data": "gb"}])
-    return text, kb(rows)
+def pack_view(uid: int, pid: int) -> tuple[str, dict]:
+    """Экран коллекции: состав и удаление целиком."""
+    pack = next((p for p in storage.epacks_list(uid) if p["id"] == pid), None)
+    if not pack:
+        return manager_view(uid)
+    sample = "".join(e["alt"] for e in storage.emojis_by_pack(uid, pid)[:30])
+    text = (f"📦 «{pack['name']}» — {pack['count']} эмодзи.\n{sample}\n\n"
+            "Коллекция удаляется только целиком.")
+    return text, kb([
+        [{"text": "🗑 Удалить коллекцию", "callback_data": f"pd:{pid}"}],
+        [{"text": "⬅️ Назад", "callback_data": "pb"}],
+    ])
 
 
-def import_keyboard(uid: int) -> dict:
-    """Выбор группы для только что присланных эмодзи."""
-    rows = [[{"text": f"📁 {g['name']}", "callback_data": f"imp:{g['id']}"}]
-            for g in storage.egroups_list(uid)]
-    rows.append([{"text": "📂 Без группы", "callback_data": "imp:0"},
-                 {"text": "➕ В новую группу", "callback_data": "impnew"}])
-    return kb(rows)
+def import_packs(message: dict) -> bool:
+    """Импортирует паки всех кастомных эмодзи из сообщения (целиком).
 
-
-def handle_custom_emojis(message: dict) -> bool:
-    """Сохраняет кастомные эмодзи из сообщения; True — если они там были."""
-    text = message.get("text", "")
-    custom = [(e["custom_emoji_id"],
-               _utf16_slice(text, e["offset"], e["length"]))
-              for e in message.get("entities") or []
-              if e.get("type") == "custom_emoji"]
-    if not custom:
+    True — если в сообщении были кастомные эмодзи.
+    """
+    ids = [e["custom_emoji_id"] for e in message.get("entities") or []
+           if e.get("type") == "custom_emoji"]
+    if not ids:
         return False
-    # alt обязан быть ровно одним эмодзи (требование rich-markdown), а текст
-    # под entity может быть любым (буквы и т.п.) — берём поле emoji стикера
+    uid = message.get("from", {}).get("id", 0)
+    chat_id = message["chat"]["id"]
     ok, stickers = api_call("getCustomEmojiStickers",
-                            custom_emoji_ids=[eid for eid, _ in custom])
-    sticker_emoji = {s["custom_emoji_id"]: s.get("emoji")
-                     for s in stickers} if ok else {}
-    unique: dict[str, str] = {}
-    for eid, alt in custom:
-        unique.setdefault(eid, sticker_emoji.get(eid) or "🙂")
-    uid = message.get("from", {}).get("id", 0)
-    chat_id = message["chat"]["id"]
-    storage.emojis_add(uid, list(unique.items()))
-    emoji_state[chat_id] = {"pending_ids": list(unique)}
-    api_call(
-        "sendMessage",
-        chat_id=chat_id,
-        text=f"Сохранил эмодзи: {len(unique)}. В какую группу их положить?",
-        reply_markup=import_keyboard(uid),
-    )
-    return True
-
-
-def handle_awaited_text(message: dict) -> bool:
-    """Ответ на вопрос бота (название группы); True — если текст обработан."""
-    chat_id = message["chat"]["id"]
-    st = emoji_state.get(chat_id)
-    text = (message.get("text") or "").strip()
-    if not st or not st.get("awaiting") or not text or text.startswith("/"):
-        return False
-    uid = message.get("from", {}).get("id", 0)
-    name = text[:MAX_GROUP_NAME]
-    awaiting = st.pop("awaiting")
-    if awaiting == "newgroup":
-        storage.egroup_create(uid, name)
-        emoji_state.pop(chat_id, None)
-    elif awaiting == "impgroup":
-        gid = storage.egroup_create(uid, name)
-        storage.emojis_set_group(uid, st.get("pending_ids") or [], gid)
-        emoji_state.pop(chat_id, None)
-    elif awaiting.startswith("rename:"):
-        storage.egroup_rename(uid, int(awaiting.split(":")[1]), name)
-        emoji_state.pop(chat_id, None)
-    else:
-        return False
-    view, keyboard = manager_view(uid)
-    api_call("sendMessage", chat_id=chat_id, text=view, reply_markup=keyboard)
+                            custom_emoji_ids=list(dict.fromkeys(ids)))
+    set_names = list(dict.fromkeys(
+        s["set_name"] for s in (stickers if ok else []) if s.get("set_name")))
+    if not set_names:
+        send_plain(chat_id, "Не удалось определить паки этих эмодзи.")
+        return True
+    lines = []
+    for name in set_names:
+        ok, st_set = api_call("getStickerSet", name=name)
+        if not ok:
+            lines.append(f"⚠️ Пак «{name}» не получен: {st_set}")
+            continue
+        # alt — привязанный к стикеру эмодзи: rich-markdown требует в alt
+        # ровно один эмодзи, произвольный текст ломает отправку
+        items = [(s["custom_emoji_id"], s.get("emoji") or "🙂")
+                 for s in st_set.get("stickers", [])
+                 if s.get("custom_emoji_id")]
+        storage.epack_add(uid, name, st_set.get("title") or name, items)
+        lines.append(f"📦 «{st_set.get('title') or name}» — {len(items)} эмодзи")
+    api_call("sendMessage", chat_id=chat_id,
+             text="Добавил коллекции:\n" + "\n".join(lines) +
+                  "\n\nМожно прислать ещё эмодзи или завершить.",
+             reply_markup=done_keyboard())
     return True
 
 
@@ -287,38 +247,30 @@ def handle_callback(cq: dict):
             params["reply_markup"] = keyboard
         api_call("editMessageText", **params)
 
-    if data == "gb":
+    if data == "pb":
         edit(*manager_view(uid))
-    elif data == "gnew":
-        emoji_state[chat_id] = {"awaiting": "newgroup"}
-        send_plain(chat_id, "Название новой группы?")
-    elif data.startswith("g:"):
-        edit(*group_view(uid, int(data[2:])))
-    elif data.startswith("gr:"):
-        emoji_state[chat_id] = {"awaiting": f"rename:{data[3:]}"}
-        send_plain(chat_id, "Новое название группы?")
-    elif data.startswith("gd:"):
-        storage.egroup_delete(uid, int(data[3:]))
-        ack = "Группа удалена, её эмодзи — в «Без группы»"
+    elif data == "padd":
+        emoji_adding[chat_id] = True
+        edit(ADD_HINT, done_keyboard())
+    elif data == "pdone":
+        emoji_adding.pop(chat_id, None)
         edit(*manager_view(uid))
-    elif data.startswith("ed:"):
-        _, gid, eid = data.split(":", 2)
-        storage.emoji_delete(uid, eid)
-        ack = "Эмодзи удалён из библиотеки"
-        edit(*group_view(uid, int(gid)))
-    elif data == "impnew":
-        st = emoji_state.setdefault(chat_id, {})
-        st["awaiting"] = "impgroup"
-        send_plain(chat_id, "Название новой группы?")
-    elif data.startswith("imp:"):
-        st = emoji_state.pop(chat_id, None) or {}
-        ids = st.get("pending_ids") or []
-        gid = int(data[4:]) or None
-        if ids:
-            storage.emojis_set_group(uid, ids, gid)
-        edit(f"Готово — эмодзи разложены ({len(ids)}). "
-             "Они уже доступны в веб-редакторе.", None)
-        ack = "Сохранено"
+    elif data.startswith("p:"):
+        edit(*pack_view(uid, int(data[2:])))
+    elif data.startswith("pd:"):
+        pid = int(data[3:])
+        pack = next((p for p in storage.epacks_list(uid) if p["id"] == pid), None)
+        if pack:
+            edit(f"Удалить коллекцию «{pack['name']}» "
+                 f"({pack['count']} эмодзи) безвозвратно?",
+                 kb([[{"text": "🗑 Да, удалить", "callback_data": f"pdy:{pid}"},
+                      {"text": "⬅️ Отмена", "callback_data": f"p:{pid}"}]]))
+        else:
+            edit(*manager_view(uid))
+    elif data.startswith("pdy:"):
+        storage.epack_delete(uid, int(data[4:]))
+        ack = "Коллекция удалена"
+        edit(*manager_view(uid))
     api_call("answerCallbackQuery", callback_query_id=cq["id"], text=ack)
 
 
@@ -405,13 +357,9 @@ def handle_message(message: dict):
             post_state.get(chat_id, {}).pop("pending", None)
             send_plain(chat_id, "Публикация отменена.")
         else:
-            # ответ на вопрос менеджера эмодзи (название группы)?
-            if handle_awaited_text(message):
-                return
-            # сообщение с кастомными эмодзи — импорт в библиотеку редактора,
-            # но не тогда, когда пользователь публикует пост через /post
-            if not post_state.get(chat_id, {}).get("pending") and \
-                    handle_custom_emojis(message):
+            # режим «добавить паки» (кнопка в /emoji): сообщения с кастомными
+            # эмодзи импортируются коллекциями, остальные обрабатываются обычно
+            if emoji_adding.get(chat_id) and import_packs(message):
                 return
             send_rich_markdown(resolve_target(chat_id), text, chat_id)
         return

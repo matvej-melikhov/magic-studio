@@ -1297,7 +1297,7 @@ $('emojiBtn').addEventListener('click', async () => {
         (g.name ? `<div class="egroup">${esc(g.name)}</div>`
                 : (groups.length > 1 ? '<div class="egroup">Без группы</div>' : '')) +
         g.emojis.map(emBtn).join('')).join('')
-    : '<div class="emoji-hint">Пришлите боту сообщение с кастомными эмодзи — они появятся здесь. Коллекции: команда /emoji в боте.</div>';
+    : '<div class="emoji-hint">Коллекций пока нет. В боте: /emoji → «Добавить паки» → пришлите сообщение с кастомными эмодзи — их паки добавятся целиком.</div>';
   menu.querySelectorAll('.em').forEach(b => b.addEventListener('click', () => {
     menu.hidden = true;
     insert(`![${b.dataset.alt}](tg://emoji?id=${b.dataset.id})`, '', '');
