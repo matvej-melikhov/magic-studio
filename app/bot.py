@@ -446,6 +446,14 @@ def main():
     if not ok:
         sys.exit(f"Токен не принят Telegram: {me}")
     storage.init_db()
+    # меню команд в клиенте Telegram (кнопка «/» слева от поля ввода)
+    api_call("setMyCommands", commands=[
+        {"command": "emoji", "description": "Коллекции кастомных эмодзи"},
+        {"command": "login", "description": "Код входа в веб-редактор"},
+        {"command": "post", "description": "Публикация в канал: /post @канал"},
+        {"command": "cancel", "description": "Отменить публикацию"},
+        {"command": "help", "description": "Справка"},
+    ])
     log.info("Запущен бот @%s", me.get("username"))
 
     offset = 0
