@@ -223,9 +223,15 @@ def handle_custom_emojis(message: dict) -> bool:
               if e.get("type") == "custom_emoji"]
     if not custom:
         return False
+    # alt обязан быть ровно одним эмодзи (требование rich-markdown), а текст
+    # под entity может быть любым (буквы и т.п.) — берём поле emoji стикера
+    ok, stickers = api_call("getCustomEmojiStickers",
+                            custom_emoji_ids=[eid for eid, _ in custom])
+    sticker_emoji = {s["custom_emoji_id"]: s.get("emoji")
+                     for s in stickers} if ok else {}
     unique: dict[str, str] = {}
     for eid, alt in custom:
-        unique.setdefault(eid, alt or "🙂")
+        unique.setdefault(eid, sticker_emoji.get(eid) or "🙂")
     uid = message.get("from", {}).get("id", 0)
     chat_id = message["chat"]["id"]
     storage.emojis_add(uid, list(unique.items()))
