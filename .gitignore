@@ -12,3 +12,5 @@ data.json.imported
 *.log
 venv
 .claude
+web/node_modules
+web/dist
