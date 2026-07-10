@@ -206,14 +206,16 @@
   .media-menu button + button { border-top: 1px solid var(--line-soft); }
   .toolbar .group button i { font-family: Georgia, serif; }
   .emoji-menu {
-    display: grid; grid-template-columns: repeat(6, 38px); gap: 2px; padding: 8px;
+    display: grid; grid-template-columns: repeat(6, 40px); gap: 2px; padding: 8px;
     max-height: 240px; overflow-y: auto;
   }
+  /* display: grid перебивает браузерный [hidden] { display: none } */
+  .emoji-menu[hidden] { display: none; }
   .emoji-menu .em {
     width: auto; padding: 5px; border-radius: 6px; display: grid; place-items: center;
     border-right: none !important; border-top: none !important;
   }
-  .emoji-menu .em img { width: 26px; height: 26px; display: block; }
+  .emoji-menu .em img { width: 30px; height: 30px; display: block; }
   .emoji-menu .em:hover { background: var(--bg); }
   .emoji-hint {
     grid-column: 1 / -1; padding: 8px 10px; font-size: 12.5px;
@@ -430,8 +432,8 @@
   .bubble aside cite { display: block; font-size: 13px; margin-top: 4px; }
   .bubble .tgtime { color: inherit; }
   .bubble .cemoji {
-    width: 20px; height: 20px; margin: 0; display: inline-block;
-    vertical-align: -4px; background: none;
+    width: 22px; height: 22px; margin: 0 -1px; display: inline-block;
+    vertical-align: -5px; background: none;
   }
   .bubble .lang {
     display: block; font-size: 10.5px; color: var(--tg-sub);
