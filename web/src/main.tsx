@@ -2,6 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider, createBrowserRouter, Navigate } from 'react-router-dom';
 import App from './App';
+import DraftsView from './components/lists/DraftsView';
+import ScheduledView from './components/lists/ScheduledView';
+import ChannelsView from './components/lists/ChannelsView';
 
 /* Стенды живут под префиксами /dev/ и /prod/ (nginx отрезает префикс
    до server.py, но URL в браузере его содержит) — роутеру нужен basename.
@@ -16,10 +19,19 @@ const router = createBrowserRouter(
       element: <App />,
       children: [
         { index: true, element: <Navigate to="/editor" replace /> },
-        { path: 'editor', element: <div>Редактор (фаза 2)</div> },
-        { path: 'drafts', element: <div>Черновики (фаза 1)</div> },
-        { path: 'scheduled', element: <div>Посты (фаза 1)</div> },
-        { path: 'channels', element: <div>Каналы (фаза 1)</div> },
+        {
+          path: 'editor',
+          element: (
+            <section className="view active" id="view-editor">
+              <div className="page"><h2>Редактор</h2>
+                <div className="empty-state">Переносится в фазе 2</div>
+              </div>
+            </section>
+          ),
+        },
+        { path: 'drafts', element: <DraftsView /> },
+        { path: 'scheduled', element: <ScheduledView /> },
+        { path: 'channels', element: <ChannelsView /> },
       ],
     },
   ],
