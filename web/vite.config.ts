@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+/* defineConfig из vitest/config знает и про поле test, и про опции Vite */
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({

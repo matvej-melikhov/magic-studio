@@ -12,7 +12,7 @@ export interface PubPost {
   when: number; message_id?: number;
 }
 
-interface AppState {
+export interface AppState {
   name: string;
   channels: Channel[];
   drafts: Draft[];

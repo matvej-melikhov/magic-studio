@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useAppState } from '../store/appState';
+import { useAppState, type AppState } from '../store/appState';
 import { useSession } from '../store/session';
 import { lsStore } from '../lib/lsStore';
 
@@ -7,9 +7,11 @@ import { lsStore } from '../lib/lsStore';
    Вместо button[data-view] — NavLink: URL меняется без перезагрузки,
    а .active вешает сам роутер. */
 
-const NAV = [
+const NAV: Array<{
+  to: string; title: string; cnt: ((s: AppState) => number) | null; icon: JSX.Element;
+}> = [
   {
-    to: '/editor', title: 'Редактор', cnt: null as null | ((s: ReturnType<typeof useAppState.getState>) => number),
+    to: '/editor', title: 'Редактор', cnt: null,
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"/></svg>,
   },
   {
@@ -24,7 +26,7 @@ const NAV = [
     to: '/channels', title: 'Каналы', cnt: (s) => s.channels.length,
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>,
   },
-] as const;
+];
 
 export default function Sidebar({ onToggle }: { onToggle: () => void }) {
   const appState = useAppState();
