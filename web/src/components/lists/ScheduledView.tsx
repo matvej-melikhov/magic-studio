@@ -107,6 +107,13 @@ export default function ScheduledView() {
     void refresh();
   };
 
+  const publishNow = async (p: SchedPost) => {
+    if (!confirm('Опубликовать пост в ' + p.target + ' прямо сейчас?')) return;
+    const resp = await api('/api/schedule/publish_now', { id: p.id });
+    toast(resp.ok ? 'Опубликовано в ' + p.target : resp.error || 'Ошибка', !resp.ok);
+    void refresh();
+  };
+
   const editSched = (post: SchedPost) => {
     startEditingSched(post);
     navigate('/editor');
@@ -149,8 +156,17 @@ export default function ScheduledView() {
                     </span>}
                 {p.status !== 'sending' && (
                   <>
-                    <button className="edit" onClick={() => editSched(p)}>Изменить</button>
-                    <button className="del" onClick={() => void cancel(p.id)}>Отменить</button>
+                    <button className="edit iconb" title="Опубликовать прямо сейчас"
+                      onClick={() => void publishNow(p)}>
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M23.9 3.4c.2-1.2-1-2.2-2.1-1.7L1.4 10.2c-1.2.5-1.1 2.3.2 2.6l5.5 1.4 2.1 6.6c.4 1.1 1.8 1.4 2.6.5l3-3.3 5.5 4c1 .8 2.5.2 2.7-1.1zM8.8 13.6l9.4-7.7c.3-.2.6.2.4.5l-7.6 8.5-.3 3.4z"/></svg>
+                    </button>
+                    <button className="edit iconb" title="Изменить" onClick={() => editSched(p)}>
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+                    </button>
+                    <button className="del iconb" title="Отменить"
+                      onClick={() => void cancel(p.id)}>
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                   </>
                 )}
               </div>

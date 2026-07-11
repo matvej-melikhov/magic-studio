@@ -292,6 +292,22 @@ def sched_cancel(uid: int, post_id: str):
                      "AND status != 'sending'", (post_id, uid))
 
 
+def sched_take_now(uid: int, post_id: str) -> dict | None:
+    """Атомарно забирает пост для немедленной публикации (→ sending):
+    планировщик его уже не тронет. None — пост не найден/уже отправляется."""
+    now = int(time.time())
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT id, user_id, markdown, target FROM scheduled "
+            "WHERE id=? AND user_id=? AND status IN ('pending','error')",
+            (post_id, uid)).fetchone()
+        if not row:
+            return None
+        conn.execute("UPDATE scheduled SET status='sending', started=? WHERE id=?",
+                     (now, post_id))
+    return dict(row)
+
+
 def sched_take_due(stale_after: int) -> list[dict]:
     """Атомарно забирает назревшие посты (→ sending) и лечит зависшие."""
     now = int(time.time())
