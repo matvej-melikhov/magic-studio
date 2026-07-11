@@ -1,8 +1,8 @@
 name: Deploy DEV
 
 on:
-  push:
-    branches: [dev]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -14,6 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
+      # dev-стенд один: пока открыт другой PR, второй на стенд не пускаем
+      - name: Стенд свободен (нет других открытых PR)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          others=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --state open \
+            --json number --jq '[.[] | select(.number != ${{ github.event.pull_request.number }})] | length')
+          if [ "$others" != "0" ]; then
+            echo "::error::Dev-стенд занят другим открытым PR ($others шт.) — деплой заблокирован. Закройте или влейте его."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Setup Node
