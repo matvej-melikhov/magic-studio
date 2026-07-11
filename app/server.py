@@ -38,6 +38,9 @@ PORT = int(os.environ.get("PORT", "8080"))
 WEB_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 EDITOR_FILE = os.path.join(WEB_DIR, "editor.html")
+# React-сборка (Vite): если dist/ есть — отдаём SPA, иначе старый editor.html
+DIST_DIR = os.path.join(WEB_DIR, "dist")
+DIST_INDEX = os.path.join(DIST_DIR, "index.html")
 LOGIN_CODES_FILE = "login_codes.json"
 
 log = logging.getLogger("editor-server")
@@ -423,16 +426,54 @@ class Handler(BaseHTTPRequestHandler):
         "/manifest.json": ("manifest.json", "application/manifest+json"),
         "/icon-180.png": ("icon-180.png", "image/png"),
         "/icon-512.png": ("icon-512.png", "image/png"),
+        "/favicon.svg": ("favicon.svg", "image/svg+xml"),
+        "/favicon-64.png": ("favicon-64.png", "image/png"),
     }
+
+    # Хешированные ассеты Vite: имя содержит хеш содержимого — кешируем навечно
+    ASSET_TYPES = {
+        ".js": "text/javascript", ".css": "text/css", ".map": "application/json",
+        ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2",
+        ".webp": "image/webp", ".ico": "image/x-icon",
+    }
+
+    def _serve_asset(self, rel_path: str) -> bool:
+        """Отдаёт файл из dist/assets с длинным кешем. False — файла нет."""
+        full = os.path.realpath(os.path.join(DIST_DIR, rel_path.lstrip("/")))
+        if not full.startswith(os.path.realpath(DIST_DIR) + os.sep):
+            return False  # защита от path traversal
+        ext = os.path.splitext(full)[1]
+        if ext not in self.ASSET_TYPES:
+            return False
+        try:
+            body = open(full, "rb").read()
+        except OSError:
+            return False
+        self.send_response(200)
+        self.send_header("Content-Type", self.ASSET_TYPES[ext])
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        self.end_headers()
+        self.wfile.write(body)
+        return True
+
+    def _serve_spa(self):
+        """index.html React-сборки, при её отсутствии — старый editor.html."""
+        for candidate in (DIST_INDEX, EDITOR_FILE):
+            try:
+                body = open(candidate, "rb").read()
+            except OSError:
+                continue
+            self._send(200, body, "text/html; charset=utf-8")
+            return
+        self._send(500, b"frontend not found", "text/plain")
 
     def do_GET(self):
         if self.path in ("/", "/index.html"):
-            try:
-                body = open(EDITOR_FILE, "rb").read()
-            except OSError:
-                self._send(500, b"editor.html not found", "text/plain")
-                return
-            self._send(200, body, "text/html; charset=utf-8")
+            self._serve_spa()
+        elif self.path.startswith("/assets/"):
+            if not self._serve_asset(self.path):
+                self._send(404, b"not found", "text/plain")
         elif self.path == "/api/emojis":
             session = self._session()
             if not session:
@@ -453,11 +494,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, b"emoji not found", "text/plain")
         elif self.path in self.STATIC_FILES:
             name, ctype = self.STATIC_FILES[self.path]
-            path = os.path.join(os.path.dirname(EDITOR_FILE), name)
-            try:
-                self._send(200, open(path, "rb").read(), ctype)
-            except OSError:
-                self._send(404, b"not found", "text/plain")
+            # сборка кладёт public/ в dist/; без сборки берём из web/public/
+            for base in (DIST_DIR, os.path.join(WEB_DIR, "public")):
+                try:
+                    self._send(200, open(os.path.join(base, name), "rb").read(), ctype)
+                    return
+                except OSError:
+                    continue
+            self._send(404, b"not found", "text/plain")
         elif self.path == "/api/config":
             self._json({"ok": True, "bot": BOT_USERNAME})
         elif self.path == "/api/state":
@@ -474,6 +518,10 @@ class Handler(BaseHTTPRequestHandler):
                 "scheduled": storage.sched_list(uid),
                 "published": storage.published_list(uid),
             })
+        elif not self.path.startswith("/api/"):
+            # SPA fallback: /editor, /drafts и т.п. при обновлении страницы
+            # должны вернуть приложение, роутер сам откроет нужный раздел
+            self._serve_spa()
         else:
             self._send(404, b"not found", "text/plain")
 
@@ -619,6 +667,17 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/schedule/cancel":
                 storage.sched_cancel(uid, self._read_json().get("id", ""))
                 self._json({"ok": True})
+            elif self.path == "/api/schedule/publish_now":
+                post = storage.sched_take_now(uid, self._read_json().get("id", ""))
+                if not post:
+                    self._json({"ok": False,
+                                "error": "Пост не найден или уже отправляется."})
+                    return
+                ok, result = send_post(post["markdown"], post["target"])
+                message_id = result.get("message_id") if ok else None
+                storage.sched_finish(post, ok, None if ok else str(result),
+                                     message_id)
+                self._json({"ok": ok, "error": None if ok else str(result)})
             else:
                 self._json({"ok": False, "error": "unknown endpoint"}, 404)
         except Exception as e:
