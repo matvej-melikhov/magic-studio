@@ -667,17 +667,6 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/schedule/cancel":
                 storage.sched_cancel(uid, self._read_json().get("id", ""))
                 self._json({"ok": True})
-            elif self.path == "/api/schedule/publish_now":
-                post = storage.sched_take_now(uid, self._read_json().get("id", ""))
-                if not post:
-                    self._json({"ok": False,
-                                "error": "Пост не найден или уже отправляется."})
-                    return
-                ok, result = send_post(post["markdown"], post["target"])
-                message_id = result.get("message_id") if ok else None
-                storage.sched_finish(post, ok, None if ok else str(result),
-                                     message_id)
-                self._json({"ok": ok, "error": None if ok else str(result)})
             else:
                 self._json({"ok": False, "error": "unknown endpoint"}, 404)
         except Exception as e:
