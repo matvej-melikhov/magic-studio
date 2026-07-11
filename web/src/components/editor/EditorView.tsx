@@ -3,6 +3,7 @@ import Toolbar from './Toolbar';
 import MarkdownTextarea from './MarkdownTextarea';
 import Preview from './Preview';
 import EditorFoot from './EditorFoot';
+import StyleGuideTour from './StyleGuideTour';
 import { useEditor } from '../../store/editor';
 import { getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
@@ -64,6 +65,7 @@ export default function EditorView() {
           <Preview />
         </div>
       </div>
+      <StyleGuideTour />
     </section>
   );
 }

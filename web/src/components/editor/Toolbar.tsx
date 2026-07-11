@@ -2,14 +2,18 @@ import { Fragment, useState } from 'react';
 import { TOOLBAR_GROUPS, hotkeyLabel } from './toolbarConfig';
 import { EmojiButton, MediaButton, AiButton } from './ToolbarExtras';
 import { lsStore } from '../../lib/lsStore';
+import { useTour } from '../../store/tour';
 
 /* Свёрнутая панель: видна первая строка, остальное по стрелке.
    Классы .toolbar/.group/#toolsToggle — из editor.html.
    Интерактивные виджеты стоят на местах оригинала: эмодзи — в конце
    группы инлайн-стилей (1), медиа — после кнопки ссылки в группе 4,
-   AI — отдельной группой в конце. */
+   AI — отдельной группой в конце.
+   data-tour / data-tour-group — якоря для гида по стилям (StyleGuideTour);
+   пока гид активен, панель принудительно раскрыта. */
 export default function Toolbar() {
   const [open, setOpen] = useState(lsStore.get('toolsOpen') === '1');
+  const tour = useTour();
 
   const toggle = () => {
     setOpen((o) => {
@@ -19,12 +23,13 @@ export default function Toolbar() {
   };
 
   return (
-    <div className={'toolbar' + (open ? ' open' : '')}>
+    <div className={'toolbar' + (open || tour.active ? ' open' : '')}>
       {TOOLBAR_GROUPS.map((group, gi) => (
-        <span className="group" key={gi}>
+        <span className="group" key={gi} data-tour-group={gi}>
           {group.map((b, bi) => (
             <Fragment key={bi}>
               <button
+                data-tour={`${gi}-${bi}`}
                 title={b.title + (b.key ? ` — ${hotkeyLabel(b.key)}` : '')}
                 onClick={b.run}>
                 {b.label}
@@ -36,6 +41,11 @@ export default function Toolbar() {
         </span>
       ))}
       <AiButton />
+      <span className="group">
+        <button id="guideBtn" title="Гид по стилям" onClick={tour.start}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.9 2.9 0 015.6 1c0 1.9-2.8 2.2-2.8 3.6"/><circle cx="12" cy="17.2" r=".6" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </span>
       <button id="toolsToggle" title="Показать все инструменты" onClick={toggle}>
         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l5 5 5-5"/></svg>
       </button>
