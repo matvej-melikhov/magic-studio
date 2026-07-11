@@ -427,6 +427,7 @@ class Handler(BaseHTTPRequestHandler):
         "/icon-180.png": ("icon-180.png", "image/png"),
         "/icon-512.png": ("icon-512.png", "image/png"),
         "/favicon.svg": ("favicon.svg", "image/svg+xml"),
+        "/favicon-64.png": ("favicon-64.png", "image/png"),
     }
 
     # Хешированные ассеты Vite: имя содержит хеш содержимого — кешируем навечно
