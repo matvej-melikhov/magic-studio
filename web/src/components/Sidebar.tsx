@@ -35,13 +35,15 @@ export default function Sidebar({ onToggle }: { onToggle: () => void }) {
 
   return (
     <aside id="sidebar">
-      <div className="brand">
+      {/* Лендинг живёт вне SPA (/about) — обычный <a>, относительный
+          href сохраняет префикс стенда (/dev, /prod) */}
+      <a className="brand" href="about" title="О сервисе">
         <div className="logo">Md</div>
         <div className="brand-text">
           <div className="name">Студия постов</div>
           <div className="tag">rich-формат Telegram</div>
         </div>
-      </div>
+      </a>
       <button id="sideToggle" title="Свернуть меню" onClick={onToggle}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
