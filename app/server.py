@@ -421,8 +421,9 @@ class Handler(BaseHTTPRequestHandler):
         token = self.headers.get("X-Session", "")
         return storage.session_get(token) if token else None
 
-    # Статика PWA: манифест и иконки приложения
+    # Статика PWA: манифест и иконки приложения (+ лендинг вне SPA)
     STATIC_FILES = {
+        "/about": ("about.html", "text/html; charset=utf-8"),
         "/manifest.json": ("manifest.json", "application/manifest+json"),
         "/icon-180.png": ("icon-180.png", "image/png"),
         "/icon-512.png": ("icon-512.png", "image/png"),
@@ -493,8 +494,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, img[0], img[1])
             else:
                 self._send(404, b"emoji not found", "text/plain")
-        elif self.path in self.STATIC_FILES:
-            name, ctype = self.STATIC_FILES[self.path]
+        elif self.path.split("?", 1)[0] in self.STATIC_FILES:
+            name, ctype = self.STATIC_FILES[self.path.split("?", 1)[0]]
             # сборка кладёт public/ в dist/; без сборки берём из web/public/
             for base in (DIST_DIR, os.path.join(WEB_DIR, "public")):
                 try:
