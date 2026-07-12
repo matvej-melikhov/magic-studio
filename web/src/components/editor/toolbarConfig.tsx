@@ -153,7 +153,7 @@ export const TOOLBAR_GROUPS: ToolButton[][] = [
     { title: 'Формула в строке', label: <b>$</b>, run: wrap('$') },
     { title: 'Формула блоком', label: <b>$$</b>, run: snippet('$$\n{sel}\n$$', 'E = mc^2') },
     {
-      title: 'Блок кода с языком', run: snippet('```python\n{sel}\n```', "print('код')"),
+      title: 'Блок кода с языком', run: snippet('```python\n{sel}\n```', 'def greet(name):\n    return f"Привет, {name}!"\n\nprint(greet("канал"))'),
       label: svg('<rect x="1.5" y="2.5" width="13" height="11" rx="1.8"/><path d="M6.2 6.2 4.4 8l1.8 1.8M9.8 6.2 11.6 8 9.8 9.8"/>'),
     },
     {
