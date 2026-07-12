@@ -119,6 +119,7 @@
     padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
     background: var(--surface); border-bottom: 1px solid var(--line);
   }
+  #mtopBrand { display: flex; align-items: center; gap: 9px; color: inherit; text-decoration: none; }
   #mtop .logo {
     width: 26px; height: 26px; border-radius: 8px;
     background: color-mix(in srgb, var(--ink) 6%, transparent);

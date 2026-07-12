@@ -177,11 +177,15 @@
     max-width: 1180px; margin: 0 auto;
     padding: clamp(60px, 10vh, 120px) clamp(20px, 4vw, 48px) 70px;
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 384px);
-    gap: clamp(24px, 3.5vw, 52px); align-items: center;
+    grid-template-areas: "head vit" "tiles vit"; align-content: center;
+    column-gap: clamp(24px, 3.5vw, 52px); row-gap: 18px;
   }
+  .show-head { grid-area: head; align-self: end; }
+  .show .tiles { grid-area: tiles; align-self: start; }
+  .show .vitrine { grid-area: vit; align-self: center; }
   .sec-h { font-size: clamp(26px, 3.4vw, 42px); letter-spacing: -.02em; margin: 0 0 10px; }
   .show .sec-h { margin-bottom: 10px; }
-  .show .sub { color: var(--muted); font-size: 14.5px; margin: 0 0 24px; max-width: 46ch; }
+  .show .sub { color: var(--muted); font-size: 14.5px; margin: 0; max-width: 46ch; }
   .tiles {
     display: grid; grid-template-columns: repeat(2, 1fr);
     border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
@@ -338,7 +342,9 @@
     transition: color .35s, border-color .35s, background .35s, box-shadow .35s, transform .35s;
   }
   .step.on .n {
-    color: #fff; border-color: transparent; background: var(--grad);
+    color: #fff; border-color: transparent;
+    /* origin: border-box — иначе градиент повторяется полосами в зоне бордера */
+    background: var(--grad) border-box;
     box-shadow: 0 6px 22px -6px rgba(99,102,241,.65);
     transform: translateY(-50%) scale(1.12);
   }
@@ -471,7 +477,18 @@
   .endcap h2 .hot { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
   footer { position: relative; z-index: 1; color: var(--muted); font-size: 12px; text-align: center; padding: 0 20px 30px; }
 
-  @media (max-width: 880px) { .show { grid-template-columns: 1fr; } }
+  @media (max-width: 880px) {
+    .show {
+      grid-template-columns: 1fr; grid-template-areas: "head" "vit" "tiles";
+      padding: 64px 20px 48px;
+    }
+    .story { padding: 44px 20px 12px; }
+    .endcap { padding: 60px 20px 90px; }
+    /* сцены-иллюстрации не помещаются в экран вместе с шагом — прячем */
+    .story .stage { display: none; }
+    /* медальоны не липнут к кромке экрана */
+    .steps { margin-left: 18px; }
+  }
   @media (max-width: 640px) {
     nav .links a.ghost { display: none; }
     .navbtn { padding: 10px 14px; font-size: 12.5px; }
@@ -532,12 +549,12 @@
   </section>
 
   <section class="show" id="show">
-    <div>
+    <div class="show-head">
       <h2 class="display sec-h">Rich формат постов</h2>
-      <p class="sub">Новая вёрстка Bot API 10.1, которой в Telegram раньше не было.
-      Жмите на элементы: пост справа покажет каждый в деле.</p>
-      <div class="tiles" id="tiles" role="tablist" aria-label="Элементы формата"></div>
+      <p class="sub">Новые возможности для ваших постов — попробуйте каждый
+      и выберите свой стиль!</p>
     </div>
+    <div class="tiles" id="tiles" role="tablist" aria-label="Элементы формата"></div>
     <div class="vitrine">
       <div class="phone">
         <div class="ch"><span class="ava">М</span>
