@@ -1,0 +1,115 @@
+/* Гид по стилям: вуаль с «дыркой», пульсирующее кольцо, карточка шага */
+
+/* Прозрачный блокатор кликов под кольцом и карточкой */
+.tour-block { position: fixed; inset: 0; z-index: 298; }
+
+/* Кольцо: капсула вокруг кнопки; гигантская тень красит остальной экран */
+.tour-ring {
+  position: fixed; z-index: 299; pointer-events: none;
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 2.5px var(--accent),
+    0 0 0 9999px rgba(13, 20, 30, .55);
+  transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  0%, 100% { outline: 6px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 0; }
+  50%      { outline: 6px solid color-mix(in srgb, var(--accent) 12%, transparent); outline-offset: 5px; }
+}
+
+/* Карточка стоит на одном месте (по центру, под панелью) с фиксированной
+   высотой — кнопка «Далее» не двигается ни по X, ни по Y, можно
+   щёлкать не целясь. Длинное содержимое скроллится внутри. */
+.tour-card {
+  position: fixed; z-index: 300;
+  left: 50%; transform: translateX(-50%);
+  width: min(360px, calc(100vw - 20px));
+  height: min(400px, 62dvh);
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 18px 50px rgba(10, 16, 24, .35);
+}
+.tour-body { flex: 1; overflow-y: auto; min-height: 0; }
+.tour-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tour-card-head b { font-size: 14px; }
+.tour-card-head kbd {
+  font: 600 11px/1 "IBM Plex Mono", ui-monospace, monospace;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 5px; padding: 3px 6px; color: var(--muted);
+}
+.tour-x { margin-left: auto; color: var(--muted); font-size: 13px; padding: 2px 4px; }
+.tour-x:hover { color: var(--ink); }
+/* Живой пример: мини-пузырь поста на фоне чата, как в предпросмотре */
+.tour-demo {
+  background: var(--chat-bg); border: 1px solid var(--line-soft);
+  border-radius: 8px; padding: 10px;
+  margin-bottom: 10px; max-height: 240px; overflow-y: auto;
+}
+.tour-demo .bubble { max-width: none; box-shadow: var(--shadow-bubble); }
+
+/* Медиа-примеры (фото, коллаж, слайдшоу) рендерятся как в настоящем
+   предпросмотре: пузырь на фоне чата, медиа навылет к краям пузыря.
+   Высота не ограничивается — ничего не обрезается снизу. */
+.tour-demo:has(figure), .tour-demo:has(.collage),
+.tour-demo:has(.slidewrap), .tour-demo:has(.mapbox) {
+  max-height: none;
+}
+/* Карта — в пузыре, как в предпросмотре, но с настоящим куском карты */
+.tour-demo .mapbox {
+  background: url('../assets/guide/map.png') center / cover;
+}
+.tour-demo .mapbox .coords {
+  background: rgba(255, 255, 255, .88); color: #33475C;
+  padding: 3px 8px; border-radius: 5px; font-weight: 600;
+}
+
+/* Медиа-виджеты в примере уменьшаются целиком (zoom), сохраняя точные
+   пропорции макета из предпросмотра — как в Telegram, только меньше */
+.tour-demo:has(.collage) .bubble { zoom: .58; }
+.tour-demo:has(.slidewrap) .bubble { zoom: .7; }
+.tour-demo:has(figure) .bubble { zoom: .8; }
+
+/* Выделение демонстрируемого фрагмента: текст примера остаётся
+   стандартным (как в настоящем предпросмотре), фрагмент отмечается
+   мягкой «дышащей» подложкой акцентного цвета */
+.tour-demo .tour-hit {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border-radius: 4px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 13%, transparent);
+  animation: tour-hit-breathe 2s ease-in-out infinite;
+}
+@keyframes tour-hit-breathe {
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 13%, transparent); }
+  50%      { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 22%, transparent); }
+}
+/* у маркера и спойлера свой фон — подложку не рисуем, метит только кольцо */
+.tour-demo mark.tour-hit { background: #FDE68A; }
+.tour-demo .spoiler.tour-hit:not(.open) {
+  background:
+    radial-gradient(circle at 20% 30%, var(--tg-sub) 0 .9px, transparent 1px),
+    radial-gradient(circle at 65% 60%, var(--tg-sub) 0 .9px, transparent 1px),
+    radial-gradient(circle at 40% 80%, var(--tg-sub) 0 .8px, transparent 1px),
+    radial-gradient(circle at 85% 25%, var(--tg-sub) 0 .8px, transparent 1px);
+  background-size: 7px 7px, 9px 9px, 8px 8px, 10px 10px;
+}
+.tour-demo .spoiler.tour-hit.open { background: var(--tg-code-bg); }
+/* описание шага — только прямой потомок тела карточки,
+   НЕ абзацы внутри примера (те живут по правилам предпросмотра) */
+.tour-body > p { margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+.tour-nav { display: flex; align-items: center; gap: 8px; }
+.tour-count {
+  margin-right: auto;
+  font: 600 11.5px/1 "IBM Plex Mono", ui-monospace, monospace;
+  color: var(--muted);
+}
+.tour-nav .btn { padding: 7px 14px; font-size: 13px; }
+.tour-nav .btn:disabled { opacity: .45; cursor: default; }
+
+/* Запуск гида: кнопка «?» рядом с заголовком «Разметка» */
+#guideBtn {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border-radius: 50%; color: var(--muted); padding: 0;
+}
+#guideBtn:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
