@@ -435,6 +435,7 @@ class Handler(BaseHTTPRequestHandler):
         ".js": "text/javascript", ".css": "text/css", ".map": "application/json",
         ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2",
         ".webp": "image/webp", ".ico": "image/x-icon",
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
     }
 
     def _serve_asset(self, rel_path: str) -> bool:
