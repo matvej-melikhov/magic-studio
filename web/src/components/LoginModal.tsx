@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import LogoMark from './LogoMark';
 import { useSession } from '../store/session';
 
 /* Окно входа: deep-link на бота + фоновый опрос, код — запасной путь.
@@ -10,8 +11,8 @@ export default function LoginModal() {
   return (
     <div id="login" className={s.loginOpen ? 'open' : ''}>
       <div className="panel">
-        <div className="logo-big">Md</div>
-        <h3>Вход в студию постов</h3>
+        <div className="logo-big"><LogoMark size={30} /></div>
+        <h3>Вход в Magic Studio</h3>
         <p>Нажмите кнопку — откроется чат с ботом, вход подтвердится автоматически.</p>
         <a className="btn primary" id="tgLoginBtn" target="_blank" rel="noopener"
           href={s.botLink} onClick={() => s.startPoll()}>

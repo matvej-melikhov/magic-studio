@@ -1,6 +1,6 @@
 {
-  "name": "Студия постов",
-  "short_name": "Студия",
+  "name": "Magic Studio",
+  "short_name": "Magic",
   "description": "Редактор rich-постов для Telegram",
   "start_url": "./",
   "scope": "./",

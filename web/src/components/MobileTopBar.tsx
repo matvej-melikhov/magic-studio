@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import LogoMark from './LogoMark';
 import { useAppState } from '../store/appState';
 import { useSession } from '../store/session';
 
@@ -36,8 +37,8 @@ export default function MobileTopBar() {
 
   return (
     <div id="mtop">
-      <div className="logo" onClick={onLogoClick}>Md</div>
-      <div className="name">Студия постов</div>
+      <div className="logo" onClick={onLogoClick}><LogoMark size={15} /></div>
+      <div className="name">Magic Studio</div>
       <span className="spacer"></span>
       <span id="mtopUser">{name}</span>
       <button id="mtopLogout" title="Выйти из аккаунта" hidden={!name}

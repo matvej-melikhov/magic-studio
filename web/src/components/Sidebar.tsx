@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import LogoMark from './LogoMark';
 import { useAppState, type AppState } from '../store/appState';
 import { useSession } from '../store/session';
 import { lsStore } from '../lib/lsStore';
@@ -38,10 +39,9 @@ export default function Sidebar({ onToggle }: { onToggle: () => void }) {
       {/* Лендинг живёт вне SPA (/about) — обычный <a>, относительный
           href сохраняет префикс стенда (/dev, /prod) */}
       <a className="brand" href="about" title="О сервисе">
-        <div className="logo">Md</div>
+        <span className="logo"><LogoMark size={20} /></span>
         <div className="brand-text">
-          <div className="name">Студия постов</div>
-          <div className="tag">rich-формат Telegram</div>
+          <div className="name">Magic Studio</div>
         </div>
       </a>
       <button id="sideToggle" title="Свернуть меню" onClick={onToggle}>

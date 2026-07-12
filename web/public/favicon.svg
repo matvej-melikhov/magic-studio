@@ -1,13 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
-  <!-- Повторяет .brand .logo из app.css: градиент 135°, скругление 6/36 -->
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2AABEE"/>
-      <stop offset="1" stop-color="#6366F1"/>
-    </linearGradient>
+  <!-- Марка Magic Studio: лента-M (см. LogoMark.tsx) -->
+  <rect width="36" height="36" rx="10" fill="#10161F"/>
+  <g transform="translate(3.6 3.6) scale(.8)"><defs>
+    <linearGradient id="lmA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5AC8FA"/><stop offset="1" stop-color="#2AABEE"/></linearGradient>
+    <linearGradient id="lmB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1877C2"/><stop offset="1" stop-color="#3D4EC0"/></linearGradient>
+    <linearGradient id="lmC" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6D79E8"/><stop offset="1" stop-color="#8B6BF0"/></linearGradient>
+    <linearGradient id="lmD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9D7BFF"/><stop offset="1" stop-color="#6366F1"/></linearGradient>
   </defs>
-  <rect width="36" height="36" rx="6" fill="url(#g)"/>
-  <text x="18" y="18" text-anchor="middle" dominant-baseline="central"
-    font-family="Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
-    font-size="16" font-weight="800" letter-spacing="-.5" fill="#fff">Md</text>
+  <polygon points="6,28 6,8 13,12 13,28" fill="url(#lmA)"/>
+  <polygon points="6,8 13,12 18,21 18,28" fill="url(#lmB)"/>
+  <polygon points="30,8 23,12 18,21 18,28" fill="url(#lmC)"/>
+  <polygon points="23,28 23,12 30,8 30,28" fill="url(#lmD)"/>
+  <polygon points="6,8 13,12 13,15.5" fill="#0E4B86" opacity=".55"/>
+  <polygon points="30,8 23,12 23,15.5" fill="#3B2F8F" opacity=".5"/></g>
 </svg>

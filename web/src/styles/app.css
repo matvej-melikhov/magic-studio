@@ -1,3 +1,5 @@
+  @import './unbounded.css'; /* фирменный шрифт для имени Magic Studio */
+
   :root {
     /* «Студия»-flat: воздух, белые панели, hairline-границы,
        один градиентный акцент */
@@ -62,12 +64,11 @@
     color: inherit; text-decoration: none; /* весь бренд-блок — ссылка на /about */
   }
   .brand .logo {
-    width: 36px; height: 36px; border-radius: 6px; background: var(--grad);
-    color: #fff; display: grid; place-items: center; font-weight: 800;
-    font-size: 16px; letter-spacing: -.5px; flex: 0 0 auto;
+    width: 36px; height: 36px; border-radius: 10px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent); /* нейтральный чип под цветной знак */
+    display: grid; place-items: center; flex: 0 0 auto;
   }
-  .brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
-  .brand .tag { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .brand .name { font-family: 'Unbounded', system-ui, sans-serif; font-weight: 800; font-size: 12.5px; }
   #sidebar nav { display: flex; flex-direction: column; gap: 2px; }
   #sidebar nav a {
     display: flex; align-items: center; gap: 11px; padding: 10px 12px;
@@ -89,7 +90,7 @@
 
   /* ── Сворачивание бокового меню (только ПК) ── */
   .brand-text { flex: 1; min-width: 0; }
-  .brand .name, .brand .tag {
+  .brand .name {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   #sidebar { position: relative; }
@@ -119,10 +120,11 @@
     background: var(--surface); border-bottom: 1px solid var(--line);
   }
   #mtop .logo {
-    width: 26px; height: 26px; border-radius: 6px; background: var(--grad);
-    color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 12px;
+    width: 26px; height: 26px; border-radius: 8px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    display: grid; place-items: center;
   }
-  #mtop .name { font-weight: 700; font-size: 14px; }
+  #mtop .name { font-family: 'Unbounded', system-ui, sans-serif; font-weight: 800; font-size: 11.5px; }
   #mtop .spacer { flex: 1; }
   #mtop #mtopUser { font-size: 12.5px; color: var(--muted); }
   #mtop #mtopLogout {
@@ -569,9 +571,9 @@
     box-shadow: var(--shadow-card);
   }
   #login .logo-big {
-    width: 54px; height: 54px; border-radius: 6px; background: var(--grad);
-    color: #fff; display: grid; place-items: center; font-weight: 800;
-    font-size: 24px; margin: 0 auto 14px;
+    width: 54px; height: 54px; border-radius: 15px;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    display: grid; place-items: center; margin: 0 auto 14px;
   }
   #login .panel { border-radius: var(--r-flat); }
   #login h3 { font-size: 17px; margin-bottom: 10px; }
