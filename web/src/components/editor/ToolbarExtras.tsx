@@ -5,7 +5,7 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
-import { emojiKey, loadRecent, pushRecent, type EmojiRef } from '../../lib/recentEmojis';
+import { emojiKey, pruneRecent, pushRecent, type EmojiRef } from '../../lib/recentEmojis';
 import { standardEmojis } from '../../lib/standardEmojis';
 import { maxEmojiVersion } from '../../lib/emojiSupport';
 import { runAI, useAi } from '../../lib/aiStream';
@@ -19,6 +19,21 @@ const sync = () => {
 /* ── Кастомные эмодзи: пикер из сохранённых через бота ── */
 interface EmojiGroup { id: string; name: string; emojis: EmojiRef[] }
 
+/* кнопка одного эмодзи: кастомный — картинка по id, стандартный — символ.
+   Живёт вне EmojiButton: компонент, объявленный внутри рендера, менял бы
+   тип на каждый setState — React пересоздавал бы кнопки, а клик по
+   удалённому узлу Dropdown принимал за «клик вне» и закрывал пикер. */
+function EmBtn({ e, pick }: { e: EmojiRef; pick: (e: EmojiRef) => void }) {
+  return (
+    <button className="em" title={e.alt} onClick={() => pick(e)}>
+      {e.emoji_id
+        ? <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
+            onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
+        : <span className="uni">{e.alt}</span>}
+    </button>
+  );
+}
+
 export function EmojiButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -27,9 +42,12 @@ export function EmojiButton() {
 
   const toggle = async () => {
     if (open) { setOpen(false); return; }
-    setRecent(loadRecent());
     const resp = await api('/api/emojis');
-    setGroups((resp.ok && (resp.groups as EmojiGroup[])) || []);
+    const gr = (resp.ok && (resp.groups as EmojiGroup[])) || [];
+    setGroups(gr);
+    // кастомные эмодзи удалённых паков выпадают и из «Последних»
+    const alive = new Set(gr.flatMap((g) => g.emojis.map((e) => e.emoji_id)));
+    setRecent(pruneRecent((e) => !e.emoji_id || alive.has(e.emoji_id)));
     setOpen(true);
   };
 
@@ -42,16 +60,6 @@ export function EmojiButton() {
     sync();
   };
 
-  /* кнопка одного эмодзи: кастомный — картинка по id, стандартный — символ */
-  const EmBtn = ({ e }: { e: EmojiRef }) => (
-    <button className="em" title={e.alt} onClick={() => pick(e)}>
-      {e.emoji_id
-        ? <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
-            onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
-        : <span className="uni">{e.alt}</span>}
-    </button>
-  );
-
   return (
     <span className="media-wrap">
       <button ref={btnRef} id="emojiBtn"
@@ -63,7 +71,7 @@ export function EmojiButton() {
         {recent.length > 0 && (
           <span style={{ display: 'contents' }}>
             <div className="egroup">Последние</div>
-            {recent.map((e) => <EmBtn key={'recent-' + emojiKey(e)} e={e} />)}
+            {recent.map((e) => <EmBtn key={'recent-' + emojiKey(e)} e={e} pick={pick} />)}
           </span>
         )}
         {/* кастомные паки — всегда выше стандартных */}
@@ -73,7 +81,7 @@ export function EmojiButton() {
               {g.name
                 ? <div className="egroup">{g.name}</div>
                 : groups.length > 1 && <div className="egroup">Без группы</div>}
-              {g.emojis.map((e) => <EmBtn key={emojiKey(e) + gi} e={e} />)}
+              {g.emojis.map((e) => <EmBtn key={emojiKey(e) + gi} e={e} pick={pick} />)}
             </span>
           ))
         ) : (
@@ -85,7 +93,7 @@ export function EmojiButton() {
         {standardEmojis(maxEmojiVersion()).map((cat) => (
           <span key={cat.name} style={{ display: 'contents' }}>
             <div className="egroup">{cat.name}</div>
-            {cat.chars.map((ch) => <EmBtn key={ch} e={{ alt: ch }} />)}
+            {cat.chars.map((ch) => <EmBtn key={ch} e={{ alt: ch }} pick={pick} />)}
           </span>
         ))}
       </Dropdown>

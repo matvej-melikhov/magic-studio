@@ -21,6 +21,14 @@ export function loadRecent(): EmojiRef[] {
   }
 }
 
+/** Убирает из истории записи, не прошедшие фильтр (например, эмодзи
+    удалённых паков), и возвращает результат. */
+export function pruneRecent(keep: (e: EmojiRef) => boolean): EmojiRef[] {
+  const list = loadRecent().filter(keep);
+  lsStore.set(KEY, JSON.stringify(list));
+  return list;
+}
+
 export function pushRecent(e: EmojiRef): EmojiRef[] {
   const current = loadRecent();
   // уже в списке — позицию не меняем, чтобы раскладка не «плыла»

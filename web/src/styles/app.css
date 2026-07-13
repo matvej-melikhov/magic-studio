@@ -196,9 +196,13 @@
   .media-menu button + button { border-top: 1px solid var(--line-soft); }
   .toolbar .group button i { font-family: Georgia, serif; }
   .emoji-menu {
-    display: grid; grid-template-columns: repeat(6, 40px); gap: 2px; padding: 8px;
-    max-height: 240px; overflow-y: auto;
+    display: grid; grid-template-columns: repeat(9, 42px); gap: 2px; padding: 10px;
+    max-height: min(480px, 60vh); overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
+  .emoji-menu::-webkit-scrollbar { width: 6px; }
+  .emoji-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  .emoji-menu::-webkit-scrollbar-track { background: transparent; }
   /* display: grid перебивает браузерный [hidden] { display: none } */
   .emoji-menu[hidden] { display: none; }
   .emoji-menu .em {
