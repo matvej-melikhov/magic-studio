@@ -25,21 +25,28 @@ def test_state_with_session(client, auth):
     assert body["channels"] == [] and body["drafts"] == []
 
 
-def test_emojis_grouped(client, auth, db):
+def test_emojis_grouped(client, auth, db, monkeypatch):
     token, uid = auth
     db.epack_add(uid, "cats", "Котики", [("1" * 17, "😺")])
+    prefetched = []
+    async def fake_prefetch(ids):
+        prefetched.extend(ids)
+    monkeypatch.setattr(core, "prefetch_emojis", fake_prefetch)
     resp = client.get("/api/emojis", headers={"X-Session": token})
     groups = resp.json()["groups"]
     assert len(groups) == 1 and groups[0]["name"] == "Котики"
     assert groups[0]["emojis"][0]["emoji_id"] == "1" * 17
+    assert prefetched == ["1" * 17]  # открытие пикера прогревает кэш
 
 
-def test_emoji_img_cached(client, monkeypatch):
-    monkeypatch.setattr(core, "fetch_emoji_image", lambda eid: (b"PNG", "image/png"))
+def test_emoji_img_from_cache(client, monkeypatch):
+    monkeypatch.setitem(core.EMOJI_CACHE, "123", (b"PNG", "image/png"))
     resp = client.get("/api/emoji/img", params={"id": "123"})
     assert resp.status_code == 200
     assert resp.content == b"PNG"
     assert resp.headers["content-type"] == "image/png"
+    # браузер может кешировать картинку навсегда
+    assert "immutable" in resp.headers["cache-control"]
 
 
 def test_emoji_img_rejects_bad_id(client):

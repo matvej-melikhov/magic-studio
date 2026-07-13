@@ -5,6 +5,7 @@
 Форматы ответов сохранены: {"ok": ...} и 401 {"ok": false, "error": "auth"}.
 """
 
+import asyncio
 import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -104,21 +105,30 @@ def state(session: dict = Depends(session_required)):
 
 
 @app.get("/api/emojis")
-def emojis(session: dict = Depends(session_required)):
+async def emojis(session: dict = Depends(session_required)):
     uid = session["user_id"]
     groups = [{"id": p["id"], "name": p["name"],
                "emojis": storage.emojis_by_pack(uid, p["id"])}
               for p in storage.epacks_list(uid)]
+    # пикер открывается — фоном прогреваем кэш картинок всего списка,
+    # чтобы <img> ниже попадали в готовое, а не ходили в Telegram по одной
+    ids = [e["emoji_id"] for g in groups for e in g["emojis"]]
+    if ids:
+        asyncio.get_running_loop().create_task(core.prefetch_emojis(ids))
     return JSONResponse({"ok": True, "groups": groups}, headers=NO_STORE)
 
 
 @app.get("/api/emoji/img")
-def emoji_img(id: str = ""):
+async def emoji_img(id: str = ""):
     # без сессии: <img> не умеет слать заголовки; отдаём только картинку
-    img = core.fetch_emoji_image(id) if id.isdigit() and len(id) <= 32 else None
+    img = await core.emoji_image(id) if id.isdigit() and len(id) <= 32 else None
     if not img:
-        return Response("emoji not found", status_code=404, media_type="text/plain")
-    return Response(img[0], media_type=img[1], headers=NO_STORE)
+        # 404 не кешируем: у битого эмодзи должен быть шанс на повтор
+        return Response("emoji not found", status_code=404,
+                        media_type="text/plain", headers=NO_STORE)
+    # картинка для id неизменна — браузер запоминает её навсегда
+    return Response(img[0], media_type=img[1],
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/{rest:path}")
