@@ -5,6 +5,7 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
+import { loadRecent, pushRecent, type EmojiRef } from '../../lib/recentEmojis';
 import { runAI, useAi } from '../../lib/aiStream';
 
 const sync = () => {
@@ -14,22 +15,26 @@ const sync = () => {
 };
 
 /* ── Кастомные эмодзи: пикер из сохранённых через бота ── */
-interface EmojiGroup { id: string; name: string; emojis: Array<{ emoji_id: string; alt: string }> }
+interface EmojiGroup { id: string; name: string; emojis: EmojiRef[] }
 
 export function EmojiButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [groups, setGroups] = useState<EmojiGroup[]>([]);
+  const [recent, setRecent] = useState<EmojiRef[]>([]);
 
   const toggle = async () => {
     if (open) { setOpen(false); return; }
+    setRecent(loadRecent());
     const resp = await api('/api/emojis');
     setGroups((resp.ok && (resp.groups as EmojiGroup[])) || []);
     setOpen(true);
   };
 
-  const pick = (e: { emoji_id: string; alt: string }) => {
-    setOpen(false);
+  /* пикер не закрывается: можно вставить несколько эмодзи подряд;
+     закрытие — кнопкой пикера или кликом вне меню (Dropdown) */
+  const pick = (e: EmojiRef) => {
+    setRecent(pushRecent(e));
     insert(`![${e.alt}](tg://emoji?id=${e.emoji_id})`, '', '');
     sync();
   };
@@ -42,6 +47,18 @@ export function EmojiButton() {
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M5.4 9.4c.6 1 1.5 1.6 2.6 1.6s2-.6 2.6-1.6"/><circle cx="5.9" cy="6.3" r=".65" fill="currentColor" stroke="none"/><circle cx="10.1" cy="6.3" r=".65" fill="currentColor" stroke="none"/></svg>
       </button>
       <Dropdown anchorRef={btnRef} open={open} onClose={() => setOpen(false)} className="emoji-menu">
+        {recent.length > 0 && (
+          <span style={{ display: 'contents' }}>
+            <div className="egroup">Последние</div>
+            {recent.map((e) => (
+              <button key={'recent-' + e.emoji_id} className="em" title={e.alt}
+                onClick={() => pick(e)}>
+                <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
+                  onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
+              </button>
+            ))}
+          </span>
+        )}
         {groups.length ? (
           groups.map((g, gi) => (
             <span key={g.id} style={{ display: 'contents' }}>
@@ -56,7 +73,7 @@ export function EmojiButton() {
               ))}
             </span>
           ))
-        ) : (
+        ) : recent.length === 0 && (
           <div className="emoji-hint">
             Коллекций пока нет. В боте: /emoji → «Добавить паки» → пришлите
             сообщение с кастомными эмодзи — их паки добавятся целиком.
