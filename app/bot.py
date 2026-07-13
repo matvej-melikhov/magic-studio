@@ -12,6 +12,7 @@ import time
 
 import requests
 
+import core
 import storage
 from env_utils import load_env
 
@@ -155,7 +156,13 @@ emoji_adding: dict[int, bool] = {}
 
 ADD_HINT = ("Пришлите сообщение с кастомными эмодзи (можно переслать чужое) — "
             "я добавлю их паки целиком, по коллекции на пак.\n"
+            "Без премиума пришлите ссылку на пак: t.me/addemoji/… "
+            "(«Поделиться» на паке).\n"
             "Сообщений может быть несколько. Когда закончите — «Готово».")
+
+# последний показанный каталог: callback_data ограничена 64 байтами,
+# поэтому кнопки ссылаются на индекс в этом списке
+catalog_shown: dict[int, list[str]] = {}
 
 
 def kb(rows: list) -> dict:
@@ -173,6 +180,7 @@ def manager_view(uid: int) -> tuple[str, dict]:
               "callback_data": f"p:{p['id']}"}]
             for p in packs]
     rows.append([{"text": "➕ Добавить паки", "callback_data": "padd"}])
+    rows.append([{"text": "🔥 Каталог популярных", "callback_data": "pcat"}])
     text = ("Коллекции эмодзи для веб-редактора — по одной на эмодзи-пак."
             if packs else
             "Коллекций пока нет. Добавьте первую — понадобится любое "
@@ -203,6 +211,40 @@ def pack_view(uid: int, pid: int) -> tuple[str, dict, list]:
         [{"text": "🗑 Удалить коллекцию", "callback_data": f"pd:{pid}"}],
         [{"text": "⬅️ Назад", "callback_data": "pb"}],
     ]), entities
+
+
+def catalog_view(uid: int, chat_id: int) -> tuple[str, dict]:
+    """Каталог: топ паков среди пользователей студии."""
+    packs = [p for p in core.emoji_catalog(uid) if not p["installed"]]
+    catalog_shown[chat_id] = [p["set_name"] for p in packs]
+    if not packs:
+        return ("В каталоге пока нечего предложить — все популярные паки "
+                "уже у вас. Добавить новый можно по ссылке t.me/addemoji/…",
+                kb([[{"text": "⬅️ Назад", "callback_data": "pb"}]]))
+    rows = [[{"text": f"➕ {p['title']}" +
+              (f" · {p['users']} 👤" if p["users"] else ""),
+              "callback_data": f"pinst:{i}"}]
+            for i, p in enumerate(packs)]
+    rows.append([{"text": "⬅️ Назад", "callback_data": "pb"}])
+    return "Популярные паки пользователей студии — добавить в один клик:", kb(rows)
+
+
+def import_pack_link(message: dict) -> bool:
+    """Импорт пака по ссылке t.me/addemoji/… (для пользователей без премиума).
+
+    True — если текст был похож на ссылку/имя пака.
+    """
+    set_name = core.parse_pack_link(message.get("text") or "")
+    if not set_name:
+        return False
+    uid = message.get("from", {}).get("id", 0)
+    chat_id = message["chat"]["id"]
+    ok, result = core.import_emoji_pack(uid, set_name)
+    text = (f"📦 «{result}» добавлен целиком.\n\nМожно прислать ещё или завершить."
+            if ok else f"⚠️ {result}")
+    api_call("sendMessage", chat_id=chat_id, text=text,
+             reply_markup=done_keyboard())
+    return True
 
 
 def import_packs(message: dict) -> bool:
@@ -265,6 +307,17 @@ def handle_callback(cq: dict):
     elif data == "padd":
         emoji_adding[chat_id] = True
         edit(ADD_HINT, done_keyboard())
+    elif data == "pcat":
+        edit(*catalog_view(uid, chat_id))
+    elif data.startswith("pinst:"):
+        names = catalog_shown.get(chat_id) or []
+        idx = int(data.split(":", 1)[1])
+        if idx < len(names):
+            ok, result = core.import_emoji_pack(uid, names[idx])
+            ack = f"📦 «{result}»" if ok else result
+        else:
+            ack = "Каталог устарел — откройте заново."
+        edit(*catalog_view(uid, chat_id))
     elif data == "pdone":
         emoji_adding.pop(chat_id, None)
         edit(*manager_view(uid))
@@ -371,8 +424,10 @@ def handle_message(message: dict):
             send_plain(chat_id, "Публикация отменена.")
         else:
             # режим «добавить паки» (кнопка в /emoji): сообщения с кастомными
-            # эмодзи импортируются коллекциями, остальные обрабатываются обычно
-            if emoji_adding.get(chat_id) and import_packs(message):
+            # эмодзи и ссылки на паки импортируются коллекциями,
+            # остальные обрабатываются обычно
+            if emoji_adding.get(chat_id) and (
+                    import_packs(message) or import_pack_link(message)):
                 return
             send_rich_markdown(resolve_target(chat_id), text, chat_id)
         return

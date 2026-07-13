@@ -18,6 +18,7 @@ const sync = () => {
 
 /* ── Кастомные эмодзи: пикер из сохранённых через бота ── */
 interface EmojiGroup { id: string; name: string; emojis: EmojiRef[] }
+interface CatalogPack { set_name: string; title: string; users: number; installed: boolean }
 
 /* кнопка одного эмодзи: кастомный — картинка по id, стандартный — символ.
    Живёт вне EmojiButton: компонент, объявленный внутри рендера, менял бы
@@ -39,16 +40,34 @@ export function EmojiButton() {
   const [open, setOpen] = useState(false);
   const [groups, setGroups] = useState<EmojiGroup[]>([]);
   const [recent, setRecent] = useState<EmojiRef[]>([]);
+  const [catalog, setCatalog] = useState<CatalogPack[]>([]);
 
-  const toggle = async () => {
-    if (open) { setOpen(false); return; }
+  const reload = async () => {
     const resp = await api('/api/emojis');
     const gr = (resp.ok && (resp.groups as EmojiGroup[])) || [];
     setGroups(gr);
     // кастомные эмодзи удалённых паков выпадают и из «Последних»
     const alive = new Set(gr.flatMap((g) => g.emojis.map((e) => e.emoji_id)));
     setRecent(pruneRecent((e) => !e.emoji_id || alive.has(e.emoji_id)));
+    const cat = await api('/api/emoji/catalog');
+    setCatalog((cat.ok && (cat.packs as CatalogPack[])) || []);
+  };
+
+  const toggle = async () => {
+    if (open) { setOpen(false); return; }
+    await reload();
     setOpen(true);
+  };
+
+  const installPack = async (setName: string) => {
+    const resp = await api('/api/emoji/packs/add', { link: setName });
+    if (resp.ok) { toast(`Пак «${resp.title}» добавлен`); void reload(); }
+    else toast(resp.error || 'Ошибка', true);
+  };
+
+  const addByLink = () => {
+    const link = prompt('Ссылка на пак (t.me/addemoji/…) или его имя:');
+    if (link?.trim()) void installPack(link.trim());
   };
 
   /* пикер не закрывается: можно вставить несколько эмодзи подряд;
@@ -90,6 +109,16 @@ export function EmojiButton() {
             пришлите сообщение с кастомными эмодзи — их паки добавятся целиком.
           </div>
         )}
+        <span style={{ display: 'contents' }}>
+            <div className="egroup">Паки</div>
+            {catalog.filter((p) => !p.installed).map((p) => (
+              <button key={p.set_name} className="packrow"
+                onClick={() => void installPack(p.set_name)}>
+                ➕ {p.title}{p.users ? ` · ${p.users} 👤` : ''}
+              </button>
+            ))}
+            <button className="packrow" onClick={addByLink}>🔗 Добавить пак по ссылке…</button>
+        </span>
         {standardEmojis(maxEmojiVersion()).map((cat) => (
           <span key={cat.name} style={{ display: 'contents' }}>
             <div className="egroup">{cat.name}</div>

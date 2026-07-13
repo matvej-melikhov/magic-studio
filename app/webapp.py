@@ -118,6 +118,12 @@ async def emojis(session: dict = Depends(session_required)):
     return JSONResponse({"ok": True, "groups": groups}, headers=NO_STORE)
 
 
+@app.get("/api/emoji/catalog")
+def emoji_catalog(session: dict = Depends(session_required)):
+    return JSONResponse({"ok": True, "packs": core.emoji_catalog(session["user_id"])},
+                        headers=NO_STORE)
+
+
 @app.get("/api/emoji/img")
 async def emoji_img(id: str = ""):
     # без сессии: <img> не умеет слать заголовки; отдаём только картинку
@@ -309,6 +315,18 @@ def schedule_publish_now(data: dict = Body(...),
     message_id = result.get("message_id") if ok else None
     storage.sched_finish(post, ok, None if ok else str(result), message_id)
     return JSONResponse({"ok": ok, "error": None if ok else str(result)},
+                        headers=NO_STORE)
+
+
+@app.post("/api/emoji/packs/add")
+def emoji_pack_add(data: dict = Body(...), session: dict = Depends(session_required)):
+    set_name = core.parse_pack_link(str(data.get("link", "")))
+    if not set_name:
+        return JSONResponse({"ok": False, "error":
+                             "Нужна ссылка вида t.me/addemoji/… или имя пака."},
+                            headers=NO_STORE)
+    ok, result = core.import_emoji_pack(session["user_id"], set_name)
+    return JSONResponse({"ok": ok, ("title" if ok else "error"): result},
                         headers=NO_STORE)
 
 

@@ -292,6 +292,71 @@ def resolve_media(markdown: str) -> tuple[bool, str]:
     return True, resolved
 
 
+# ── Импорт эмодзи-паков по имени/ссылке и каталог ───────────────────
+# Ссылка «Поделиться» у пака: t.me/addemoji/<set_name>. Импорт по имени
+# не требует премиума — состав отдаёт getStickerSet.
+PACK_LINK_RE = re.compile(
+    r"^(?:https?://)?t(?:elegram)?\.me/add(?:emoji|stickers)/"
+    r"([A-Za-z0-9_]{1,64})/?$")
+PACK_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
+
+# Стартовый каталог, пока топ сервиса не накопил данных:
+# (set_name из ссылки t.me/addemoji/…, название для витрины)
+STARTER_PACKS: list[tuple[str, str]] = [
+    ("blockymojis", "Minecraft | @Sendchan"),
+    ("MINECRAFTmil", "MINECRAFT @milky_v_main"),
+    ("mobminecraft2011_by_fStikBot", "Minecraft mob @olfiww"),
+    ("MinecraftAirDsgn", "Майнкрафт от @AirAbout"),
+    ("minemojinon", "Minecraft — @emojinon"),
+]
+
+
+def parse_pack_link(text: str) -> str | None:
+    """set_name из ссылки t.me/addemoji/… или «голого» имени пака."""
+    text = text.strip()
+    m = PACK_LINK_RE.match(text)
+    if m:
+        return m.group(1)
+    return text if PACK_NAME_RE.match(text) else None
+
+
+def import_emoji_pack(uid: int, set_name: str) -> tuple[bool, str]:
+    """Импортирует эмодзи-пак целиком. Возвращает (ok, title | ошибка)."""
+    ok, st_set = api_call("getStickerSet", name=set_name)
+    if not ok:
+        return False, f"Пак «{set_name}» не найден: {st_set}"
+    if st_set.get("sticker_type") != "custom_emoji":
+        return False, f"«{st_set.get('title') or set_name}» — стикеры, а не кастомные эмодзи."
+    # alt — привязанный к стикеру эмодзи: rich-markdown требует в alt
+    # ровно один эмодзи, произвольный текст ломает отправку
+    items = [(s["custom_emoji_id"], s.get("emoji") or "🙂")
+             for s in st_set.get("stickers", []) if s.get("custom_emoji_id")]
+    if not items:
+        return False, f"В паке «{st_set.get('title') or set_name}» нет эмодзи."
+    title = st_set.get("title") or set_name
+    storage.epack_add(uid, set_name, title, items)
+    return True, title
+
+
+def emoji_catalog(uid: int, limit: int = 10) -> list[dict]:
+    """Каталог паков: топ сервиса + стартовый список, с отметкой installed."""
+    installed = {p["set_name"] for p in storage.epacks_list(uid)}
+    seen: set[str] = set()
+    out = []
+    for p in storage.epacks_top(limit * 2):
+        if p["set_name"] in seen:
+            continue
+        seen.add(p["set_name"])
+        out.append({"set_name": p["set_name"], "title": p["title"],
+                    "users": p["users"], "installed": p["set_name"] in installed})
+    for name, title in STARTER_PACKS:
+        if name not in seen:
+            seen.add(name)
+            out.append({"set_name": name, "title": title, "users": 0,
+                        "installed": name in installed})
+    return out[:limit]
+
+
 # ── Картинки кастомных эмодзи: асинхронно, с кэшем в памяти ─────────
 # Кэш: id -> (bytes, content-type). Неудачи помним минуту, чтобы битый id
 # не долбил API на каждый рендер, но у браузера был шанс на повтор.
