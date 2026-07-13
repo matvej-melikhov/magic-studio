@@ -5,7 +5,9 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
-import { loadRecent, pushRecent, type EmojiRef } from '../../lib/recentEmojis';
+import { emojiKey, loadRecent, pushRecent, type EmojiRef } from '../../lib/recentEmojis';
+import { standardEmojis } from '../../lib/standardEmojis';
+import { maxEmojiVersion } from '../../lib/emojiSupport';
 import { runAI, useAi } from '../../lib/aiStream';
 
 const sync = () => {
@@ -35,9 +37,20 @@ export function EmojiButton() {
      закрытие — кнопкой пикера или кликом вне меню (Dropdown) */
   const pick = (e: EmojiRef) => {
     setRecent(pushRecent(e));
-    insert(`![${e.alt}](tg://emoji?id=${e.emoji_id})`, '', '');
+    // кастомный — rich-синтаксис, стандартный — просто символ в текст
+    insert(e.emoji_id ? `![${e.alt}](tg://emoji?id=${e.emoji_id})` : e.alt, '', '');
     sync();
   };
+
+  /* кнопка одного эмодзи: кастомный — картинка по id, стандартный — символ */
+  const EmBtn = ({ e }: { e: EmojiRef }) => (
+    <button className="em" title={e.alt} onClick={() => pick(e)}>
+      {e.emoji_id
+        ? <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
+            onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
+        : <span className="uni">{e.alt}</span>}
+    </button>
+  );
 
   return (
     <span className="media-wrap">
@@ -50,35 +63,31 @@ export function EmojiButton() {
         {recent.length > 0 && (
           <span style={{ display: 'contents' }}>
             <div className="egroup">Последние</div>
-            {recent.map((e) => (
-              <button key={'recent-' + e.emoji_id} className="em" title={e.alt}
-                onClick={() => pick(e)}>
-                <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
-                  onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
-              </button>
-            ))}
+            {recent.map((e) => <EmBtn key={'recent-' + emojiKey(e)} e={e} />)}
           </span>
         )}
+        {/* кастомные паки — всегда выше стандартных */}
         {groups.length ? (
           groups.map((g, gi) => (
             <span key={g.id} style={{ display: 'contents' }}>
               {g.name
                 ? <div className="egroup">{g.name}</div>
                 : groups.length > 1 && <div className="egroup">Без группы</div>}
-              {g.emojis.map((e) => (
-                <button key={e.emoji_id + gi} className="em" title={e.alt} onClick={() => pick(e)}>
-                  <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
-                    onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
-                </button>
-              ))}
+              {g.emojis.map((e) => <EmBtn key={emojiKey(e) + gi} e={e} />)}
             </span>
           ))
-        ) : recent.length === 0 && (
+        ) : (
           <div className="emoji-hint">
-            Коллекций пока нет. В боте: /emoji → «Добавить паки» → пришлите
-            сообщение с кастомными эмодзи — их паки добавятся целиком.
+            Кастомных коллекций пока нет. В боте: /emoji → «Добавить паки» →
+            пришлите сообщение с кастомными эмодзи — их паки добавятся целиком.
           </div>
         )}
+        {standardEmojis(maxEmojiVersion()).map((cat) => (
+          <span key={cat.name} style={{ display: 'contents' }}>
+            <div className="egroup">{cat.name}</div>
+            {cat.chars.map((ch) => <EmBtn key={ch} e={{ alt: ch }} />)}
+          </span>
+        ))}
       </Dropdown>
     </span>
   );

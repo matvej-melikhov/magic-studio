@@ -206,6 +206,8 @@
     border-right: none !important; border-top: none !important;
   }
   .emoji-menu .em img { width: 30px; height: 30px; display: block; }
+  /* стандартные юникод-эмодзи: символ тем же размером, что и картинки */
+  .emoji-menu .em .uni { font-size: 24px; line-height: 30px; display: block; }
   .emoji-menu .em:hover { background: var(--bg); }
   .emoji-hint {
     grid-column: 1 / -1; padding: 8px 10px; font-size: 12.5px;
