@@ -5,7 +5,10 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
-import { runAI, stopAI, markFragment, useAi } from '../../lib/aiStream';
+import {
+  runAI, stopAI, markFragment, useAi,
+  AI_TONE_PRESETS, getAiTone, setAiTonePreset, setAiToneCustom,
+} from '../../lib/aiStream';
 
 const sync = () => {
   const md = getEditorEl();
@@ -121,39 +124,84 @@ export function MediaButton() {
   );
 }
 
-/* ── AI-помощник: локальная модель через сервер (/api/ai → Ollama) ── */
+/* ── AI-помощник: локальная модель через сервер (/api/ai → Ollama) ──
+   Меню двухшаговое: сначала выбор действия, а для «переписать»/«с нуля» —
+   второй экран с выбором тона (у «оформить» тона нет, слова не меняются).
+   generate спрашивает тему ПОСЛЕ тона: prompt() — блокирующий системный
+   диалог, поэтому дропдаун закрываем ДО его вызова (как везде в этом
+   файле — anchor()/map()/byUrl() — иначе конфликтует с обработчиком
+   клика вне меню и генерация срывается молча). */
+interface PendingRewrite { action: 'rewrite'; text: string; s: number; e: number; context?: string }
+interface PendingGenerate { action: 'generate' }
+type PendingRun = PendingRewrite | PendingGenerate;
+
 export function AiButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<PendingRun | null>(null);
   const busy = useAi((s) => s.busy);
+  const [tone, setTone] = useState(getAiTone());
+
+  const close = () => { setOpen(false); setPending(null); };
+
+  const execute = (run: PendingRun, toneKey: string) => {
+    close();
+    if (run.action === 'generate') {
+      const q = prompt('О чём написать пост?');
+      if (!q || !q.trim()) return;
+      const md = getEditorEl();
+      if (!md) return;
+      /* «с нуля» — новый пост вместо текущего: выделяем всё, сгенерированный
+         текст заменит содержимое (вставка идёт через execCommand, Ctrl+Z вернёт) */
+      void runAI('generate', q.trim(), 0, md.value.length, undefined, toneKey || undefined);
+    } else {
+      void runAI('rewrite', run.text, run.s, run.e, run.context, toneKey || undefined);
+    }
+  };
+
+  const pickTonePreset = (key: string) => {
+    setAiTonePreset(key);
+    setTone(getAiTone());
+    if (pending) execute(pending, key);
+  };
+
+  const pickCustomTone = () => {
+    if (!pending) return;
+    const run = pending;
+    close();
+    const text = prompt(
+      'Опишите тон и стиль своими словами (например «саркастично, с юмором»):',
+      tone.preset === 'custom' ? tone.custom : '',
+    );
+    if (text === null) return;
+    const toneText = text.trim();
+    if (toneText) { setAiToneCustom(toneText); setTone(getAiTone()); }
+    execute(run, toneText);
+  };
 
   const withSel = (fn: (md: HTMLTextAreaElement, s: number, e: number) => void) => {
-    setOpen(false);
     const md = getEditorEl();
     if (md) fn(md, md.selectionStart, md.selectionEnd);
   };
 
   const rewrite = () => withSel((md, s, e) => {
-    if (s === e) { toast('Выделите текст, который нужно переписать', true); return; }
+    if (s === e) { toast('Выделите текст, который нужно переписать', true); setOpen(false); return; }
     /* фрагмент внутри целого поста — модель стыкует стиль с окружением */
     const context = e - s < md.value.length ? markFragment(md.value, s, e) : undefined;
-    void runAI('rewrite', md.value.slice(s, e), s, e, context);
+    setPending({ action: 'rewrite', text: md.value.slice(s, e), s, e, context });
   });
 
   const format = () => withSel((md, s, e) => {
     const hasSel = s !== e;
     const text = hasSel ? md.value.slice(s, e) : md.value;
-    if (!text.trim()) { toast('Пост пустой — оформлять нечего', true); return; }
+    if (!text.trim()) { toast('Пост пустой — оформлять нечего', true); close(); return; }
     const context = hasSel && text.length < md.value.length
       ? markFragment(md.value, s, e) : undefined;
     void runAI('format', text, hasSel ? s : 0, hasSel ? e : md.value.length, context);
+    close();
   });
 
-  const generate = () => withSel((_md, s, e) => {
-    const q = prompt('О чём написать пост?');
-    if (!q || !q.trim()) return;
-    void runAI('generate', q.trim(), s, e);
-  });
+  const generate = () => setPending({ action: 'generate' });
 
   return (
     <span className="group ai-group">
@@ -162,15 +210,36 @@ export function AiButton() {
         <button ref={btnRef} id="aiBtn"
           title={busy ? 'Остановить генерацию' : 'AI-помощник'}
           className={busy ? 'ai-busy' : ''}
-          onClick={() => { if (busy) stopAI(); else setOpen((o) => !o); }}>
+          onClick={() => { if (busy) stopAI(); else { setPending(null); setOpen((o) => !o); } }}>
           {busy
             ? <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
             : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>}
         </button>
-        <Dropdown anchorRef={btnRef} open={open} onClose={() => setOpen(false)}>
-          <button onClick={rewrite}>Переписать выделенное</button>
-          <button onClick={format}>Оформить разметкой</button>
-          <button onClick={generate}>Написать с нуля…</button>
+        <Dropdown anchorRef={btnRef} open={open} onClose={close}>
+          {pending ? (
+            <>
+              <button className="ai-menu-back" onClick={() => setPending(null)}>← Назад</button>
+              <div className="ai-tone-label">Тон</div>
+              {AI_TONE_PRESETS.map((p) => (
+                <button key={p.key || 'neutral'}
+                  className={tone.preset === p.key ? 'ai-tone-active' : ''}
+                  onClick={() => pickTonePreset(p.key)}>
+                  {tone.preset === p.key ? '✓ ' : ''}{p.label}
+                </button>
+              ))}
+              <button className={tone.preset === 'custom' ? 'ai-tone-active' : ''}
+                onClick={pickCustomTone}>
+                {tone.preset === 'custom' && tone.custom
+                  ? `✓ Свой: ${tone.custom}` : 'Свой…'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={rewrite}>Переписать выделенное</button>
+              <button onClick={format}>Оформить разметкой</button>
+              <button onClick={generate}>Написать с нуля…</button>
+            </>
+          )}
         </Dropdown>
       </span>
     </span>

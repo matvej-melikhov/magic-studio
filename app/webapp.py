@@ -310,10 +310,11 @@ def ai(data: dict = Body(...), session: dict = Depends(session_required)):
 
     # context — пост целиком с помеченным фрагментом (правка выделенного)
     context = (data.get("context") or "").strip() or None
+    tone = (data.get("tone") or "").strip()[:200] or None
 
     def ndjson():
         # потоковый ответ: NDJSON-чанки по мере генерации модели
-        for chunk in core.ai_stream(data.get("action", ""), text, context):
+        for chunk in core.ai_stream(data.get("action", ""), text, context, tone):
             yield (json.dumps(chunk, ensure_ascii=False) + "\n").encode()
 
     return StreamingResponse(ndjson(), media_type="application/x-ndjson; charset=utf-8",

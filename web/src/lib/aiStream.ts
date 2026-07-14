@@ -17,6 +17,33 @@ export const useAi = create<{ busy: boolean }>(() => ({ busy: false }));
 
 interface AiMsg { t?: string; error?: string; ok?: boolean }
 
+/* Тон для rewrite/generate (format слова не меняет — тон там неприменим).
+   Пресеты — ключи должны совпадать с AI_TONES в app/core.py. Выбор хранится
+   в localStorage, чтобы не выбирать заново при каждом запросе. */
+export const AI_TONE_PRESETS: Array<{ key: string; label: string }> = [
+  { key: '', label: 'Нейтральный' },
+  { key: 'business', label: 'Деловой' },
+  { key: 'casual', label: 'Неформальный' },
+  { key: 'friendly', label: 'Дружелюбный' },
+  { key: 'expert', label: 'Экспертный' },
+];
+
+export function getAiTone(): { preset: string; custom: string } {
+  return {
+    preset: lsStore.get('aiTonePreset') || '',
+    custom: lsStore.get('aiToneCustom') || '',
+  };
+}
+
+export function setAiTonePreset(key: string): void {
+  lsStore.set('aiTonePreset', key);
+}
+
+export function setAiToneCustom(text: string): void {
+  lsStore.set('aiToneCustom', text);
+  lsStore.set('aiTonePreset', 'custom');
+}
+
 /* Маркеры фрагмента — те же, что в core.py (FRAG_OPEN/FRAG_CLOSE) */
 export function markFragment(full: string, selStart: number, selEnd: number): string {
   return full.slice(0, selStart) + '<<<' + full.slice(selStart, selEnd) +
@@ -37,6 +64,7 @@ export async function runAI(
   selStart: number,
   selEnd: number,
   context?: string,
+  tone?: string,
 ): Promise<void> {
   const md = getEditorEl();
   if (!md) return;
@@ -62,7 +90,7 @@ export async function runAI(
         'X-Session': lsStore.get('session') || '',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action, text, context }),
+      body: JSON.stringify({ action, text, context, tone }),
       signal: aborter.signal,
     });
     if (r.status === 401) {

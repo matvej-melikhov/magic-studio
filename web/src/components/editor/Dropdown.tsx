@@ -28,6 +28,10 @@ export default function Dropdown({ anchorRef, open, onClose, className, children
     if (!open) return;
     const close = (e: MouseEvent) => {
       const t = e.target as Element;
+      /* Клик по кнопке внутри меню, которая перерисовкой уже убрана из DOM
+         (меню сменило экран): React успевает обновить дерево до того, как
+         клик всплывёт сюда, и contains() дал бы false — это не клик снаружи. */
+      if (!t.isConnected) return;
       if (!menuRef.current?.contains(t) && !anchorRef.current?.contains(t)) onClose();
     };
     document.addEventListener('click', close);

@@ -29,6 +29,30 @@ def test_every_action_has_prompt_examples_options():
         assert "temperature" in conf["options"], action
 
 
+# ── тон (rewrite/generate) ──────────────────────────
+
+def test_tone_preset_applied_to_rewrite_and_generate():
+    for action in ("rewrite", "generate"):
+        msgs = core.build_ai_messages(action, "текст", tone="business")
+        assert core.AI_TONES["business"] in msgs[0]["content"]
+
+
+def test_tone_not_applied_to_format():
+    msgs = core.build_ai_messages("format", "текст", tone="business")
+    assert core.AI_TONES["business"] not in msgs[0]["content"]
+
+
+def test_tone_custom_text():
+    msgs = core.build_ai_messages("generate", "текст", tone="с сарказмом")
+    assert "с сарказмом" in msgs[0]["content"]
+
+
+def test_tone_empty_changes_nothing():
+    with_none = core.build_ai_messages("generate", "текст", tone=None)
+    with_empty = core.build_ai_messages("generate", "текст", tone="  ")
+    assert with_none[0]["content"] == with_empty[0]["content"]
+
+
 # ── _clean_stream ───────────────────────────────────
 
 def clean(parts):
