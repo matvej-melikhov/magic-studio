@@ -302,6 +302,23 @@ def schedule_publish_now(data: dict = Body(...),
                         headers=NO_STORE)
 
 
+def _ai_refs(uid: int, ids) -> list[str]:
+    """Markdown постов-референсов по их id (только свои посты — берём из БД,
+    а не из тела запроса). refs не прислали вовсе — берём последние
+    опубликованные; прислали пустой список — значит примеры не нужны."""
+    if ids is None:
+        posts = storage.published_list(uid)[:core.AI_REFS_MAX]
+        return [p["markdown"] for p in posts]
+    if not isinstance(ids, list):
+        return []
+    out = []
+    for post_id in ids[:core.AI_REFS_MAX]:
+        post = storage.published_get(uid, str(post_id))
+        if post:
+            out.append(post["markdown"])
+    return out
+
+
 @app.post("/api/ai")
 def ai(data: dict = Body(...), session: dict = Depends(session_required)):
     text = (data.get("text") or "").strip()
@@ -311,10 +328,11 @@ def ai(data: dict = Body(...), session: dict = Depends(session_required)):
     # context — пост целиком с помеченным фрагментом (правка выделенного)
     context = (data.get("context") or "").strip() or None
     tone = (data.get("tone") or "").strip()[:200] or None
+    refs = _ai_refs(session["user_id"], data.get("refs"))
 
     def ndjson():
         # потоковый ответ: NDJSON-чанки по мере генерации модели
-        for chunk in core.ai_stream(data.get("action", ""), text, context, tone):
+        for chunk in core.ai_stream(data.get("action", ""), text, context, tone, refs):
             yield (json.dumps(chunk, ensure_ascii=False) + "\n").encode()
 
     return StreamingResponse(ndjson(), media_type="application/x-ndjson; charset=utf-8",

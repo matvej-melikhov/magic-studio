@@ -108,6 +108,28 @@ AI_TONES: dict[str, str] = {
 }
 
 
+# Посты-референсы: сколько берём и до скольких символов режем каждый —
+# три поста по 1200 символов укладываются в num_ctx с запасом под сам пост
+AI_REFS_MAX = 3
+AI_REFS_CHARS = 1200
+
+
+def _refs_instruction(refs: list[str] | None) -> str:
+    """Примеры постов канала как образец авторского стиля."""
+    posts = [(r or "").strip()[:AI_REFS_CHARS]
+             for r in (refs or [])[:AI_REFS_MAX] if (r or "").strip()]
+    if not posts:
+        return ""
+    body = "\n\n---\n\n".join(posts)
+    return (
+        "Ниже — посты этого канала. Держись их манеры: та же длина, "
+        "тот же тон, та же плотность разметки, похожие обороты и способ "
+        "обращаться к читателю. Содержание не копируй — это образец "
+        "стиля, а не источник фактов.\n\n"
+        f"---\n\n{body}\n\n---"
+    )
+
+
 def _tone_instruction(tone: str | None) -> str:
     """Инструкция по тону: пресет из AI_TONES или произвольное описание."""
     tone = (tone or "").strip()
@@ -255,20 +277,23 @@ AI_KEEP_ALIVE = -1
 
 
 def build_ai_messages(action: str, text: str, context: str | None = None,
-                       tone: str | None = None) -> list[dict]:
+                       tone: str | None = None,
+                       refs: list[str] | None = None) -> list[dict]:
     """Собирает историю чата: system + few-shot примеры + запрос.
 
     context — пост целиком с фрагментом, помеченным FRAG_OPEN/FRAG_CLOSE
     (правка выделенного): модель видит окружение и стыкует стиль.
-    tone — пресет тона или произвольное описание (только rewrite/generate:
-    format не меняет слова, поэтому тон там неприменим).
+    tone — пресет тона или произвольное описание.
+    refs — markdown прошлых постов канала как образец авторского стиля.
+    tone и refs только для rewrite/generate: format не меняет слова,
+    поэтому стиль там неприменим.
     """
     conf = AI_ACTIONS[action]
     system = conf["system"]
     if action in ("rewrite", "generate"):
-        extra = _tone_instruction(tone)
-        if extra:
-            system = f"{system}\n\n{extra}"
+        for extra in (_tone_instruction(tone), _refs_instruction(refs)):
+            if extra:
+                system = f"{system}\n\n{extra}"
     messages = [{"role": "system", "content": system}]
     for user, assistant in conf["examples"]:
         messages.append({"role": "user", "content": user})
@@ -320,7 +345,7 @@ def _clean_stream(parts):
 
 
 def ai_stream(action: str, text: str, context: str | None = None,
-              tone: str | None = None):
+              tone: str | None = None, refs: list[str] | None = None):
     """Генератор чанков ответа модели: {'t': текст} | {'error': …} | {'done': True}."""
     conf = AI_ACTIONS.get(action)
     if not conf:
@@ -336,7 +361,7 @@ def ai_stream(action: str, text: str, context: str | None = None,
                 "stream": True,
                 "think": False,
                 "keep_alive": AI_KEEP_ALIVE,
-                "messages": build_ai_messages(action, text, context, tone),
+                "messages": build_ai_messages(action, text, context, tone, refs),
                 "options": {**conf["options"], "num_ctx": AI_NUM_CTX},
             },
             stream=True,

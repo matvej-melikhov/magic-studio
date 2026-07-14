@@ -65,6 +65,7 @@ export async function runAI(
   selEnd: number,
   context?: string,
   tone?: string,
+  refs?: string[],
 ): Promise<void> {
   const md = getEditorEl();
   if (!md) return;
@@ -90,7 +91,10 @@ export async function runAI(
         'X-Session': lsStore.get('session') || '',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action, text, context, tone }),
+      /* refs — id прошлых постов канала как образец стиля; сервер сам достаёт
+         их markdown из БД. Пустой список = «без примеров» (не то же самое,
+         что отсутствие поля — тогда сервер возьмёт последние посты сам). */
+      body: JSON.stringify({ action, text, context, tone, refs }),
       signal: aborter.signal,
     });
     if (r.status === 401) {

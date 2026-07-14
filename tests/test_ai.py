@@ -53,6 +53,36 @@ def test_tone_empty_changes_nothing():
     assert with_none[0]["content"] == with_empty[0]["content"]
 
 
+# ── посты-референсы (rewrite/generate) ──────────────
+
+def test_refs_added_to_generate():
+    msgs = core.build_ai_messages("generate", "текст", refs=["Первый пост", "Второй пост"])
+    system = msgs[0]["content"]
+    assert "Первый пост" in system and "Второй пост" in system
+
+
+def test_refs_not_added_to_format():
+    msgs = core.build_ai_messages("format", "текст", refs=["Первый пост"])
+    assert "Первый пост" not in msgs[0]["content"]
+
+
+def test_refs_limited_and_truncated():
+    long_post = "я" * (core.AI_REFS_CHARS + 500)
+    msgs = core.build_ai_messages(
+        "generate", "текст", refs=[long_post, "б", "в", "лишний четвёртый"])
+    system = msgs[0]["content"]
+    assert "лишний четвёртый" not in system            # больше AI_REFS_MAX не берём
+    assert "я" * core.AI_REFS_CHARS in system
+    assert "я" * (core.AI_REFS_CHARS + 1) not in system  # каждый режется по длине
+
+
+def test_refs_empty_changes_nothing():
+    plain = core.build_ai_messages("generate", "текст")
+    with_empty = core.build_ai_messages("generate", "текст", refs=[])
+    with_blank = core.build_ai_messages("generate", "текст", refs=["", "   "])
+    assert plain[0]["content"] == with_empty[0]["content"] == with_blank[0]["content"]
+
+
 # ── _clean_stream ───────────────────────────────────
 
 def clean(parts):

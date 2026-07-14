@@ -5,6 +5,8 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
+import { fmtDate } from '../../lib/format';
+import { useAppState } from '../../store/appState';
 import {
   runAI, stopAI, markFragment, useAi,
   AI_TONE_PRESETS, getAiTone, setAiTonePreset, setAiToneCustom,
@@ -125,50 +127,44 @@ export function MediaButton() {
 }
 
 /* ── AI-помощник: локальная модель через сервер (/api/ai → Ollama) ──
-   Меню двухшаговое: сначала выбор действия, а для «переписать»/«с нуля» —
-   второй экран с выбором тона (у «оформить» тона нет, слова не меняются).
-   generate спрашивает тему ПОСЛЕ тона: prompt() — блокирующий системный
-   диалог, поэтому дропдаун закрываем ДО его вызова (как везде в этом
-   файле — anchor()/map()/byUrl() — иначе конфликтует с обработчиком
-   клика вне меню и генерация срывается молча). */
+   Меню трёхшаговое: действие → тон → посты-референсы (образец авторского
+   стиля). «Оформить разметкой» идёт сразу: там слова не меняются, поэтому
+   ни тон, ни стиль неприменимы. Тема поста для «с нуля» спрашивается
+   сразу при выборе действия — дальше идут только экраны меню, чтобы
+   блокирующий prompt() не всплывал после финальной кнопки. */
 interface PendingRewrite { action: 'rewrite'; text: string; s: number; e: number; context?: string }
-interface PendingGenerate { action: 'generate' }
+interface PendingGenerate { action: 'generate'; text: string }
 type PendingRun = PendingRewrite | PendingGenerate;
+
+const REFS_MAX = 3;   // столько же берёт сервер (core.AI_REFS_MAX)
 
 export function AiButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<PendingRun | null>(null);
+  const [step, setStep] = useState<'tone' | 'refs'>('tone');
+  const [toneKey, setToneKey] = useState('');
+  const [refs, setRefs] = useState<string[]>([]);
   const busy = useAi((s) => s.busy);
   const [tone, setTone] = useState(getAiTone());
+  const published = useAppState((s) => s.published);
 
-  const close = () => { setOpen(false); setPending(null); };
+  const close = () => { setOpen(false); setPending(null); setStep('tone'); };
 
-  const execute = (run: PendingRun, toneKey: string) => {
-    close();
-    if (run.action === 'generate') {
-      const q = prompt('О чём написать пост?');
-      if (!q || !q.trim()) return;
-      const md = getEditorEl();
-      if (!md) return;
-      /* «с нуля» — новый пост вместо текущего: выделяем всё, сгенерированный
-         текст заменит содержимое (вставка идёт через execCommand, Ctrl+Z вернёт) */
-      void runAI('generate', q.trim(), 0, md.value.length, undefined, toneKey || undefined);
-    } else {
-      void runAI('rewrite', run.text, run.s, run.e, run.context, toneKey || undefined);
-    }
+  /* по умолчанию — последние посты канала; их же сервер взял бы сам */
+  const toRefs = (key: string) => {
+    setToneKey(key);
+    setRefs(published.slice(0, REFS_MAX).map((p) => p.id));
+    setStep('refs');
   };
 
   const pickTonePreset = (key: string) => {
     setAiTonePreset(key);
     setTone(getAiTone());
-    if (pending) execute(pending, key);
+    toRefs(key);
   };
 
   const pickCustomTone = () => {
-    if (!pending) return;
-    const run = pending;
-    close();
     const text = prompt(
       'Опишите тон и стиль своими словами (например «саркастично, с юмором»):',
       tone.preset === 'custom' ? tone.custom : '',
@@ -176,7 +172,30 @@ export function AiButton() {
     if (text === null) return;
     const toneText = text.trim();
     if (toneText) { setAiToneCustom(toneText); setTone(getAiTone()); }
-    execute(run, toneText);
+    toRefs(toneText);
+  };
+
+  const toggleRef = (id: string) => setRefs((cur) => (
+    cur.includes(id) ? cur.filter((x) => x !== id)
+      : cur.length >= REFS_MAX ? cur
+        : [...cur, id]
+  ));
+
+  const execute = () => {
+    if (!pending) return;
+    const run = pending;
+    close();
+    if (run.action === 'generate') {
+      const md = getEditorEl();
+      if (!md) return;
+      /* «с нуля» — новый пост вместо текущего: выделяем всё, сгенерированный
+         текст заменит содержимое (вставка идёт через execCommand, Ctrl+Z вернёт) */
+      void runAI('generate', run.text, 0, md.value.length, undefined,
+        toneKey || undefined, refs);
+    } else {
+      void runAI('rewrite', run.text, run.s, run.e, run.context,
+        toneKey || undefined, refs);
+    }
   };
 
   const withSel = (fn: (md: HTMLTextAreaElement, s: number, e: number) => void) => {
@@ -188,6 +207,7 @@ export function AiButton() {
     if (s === e) { toast('Выделите текст, который нужно переписать', true); setOpen(false); return; }
     /* фрагмент внутри целого поста — модель стыкует стиль с окружением */
     const context = e - s < md.value.length ? markFragment(md.value, s, e) : undefined;
+    setStep('tone');
     setPending({ action: 'rewrite', text: md.value.slice(s, e), s, e, context });
   });
 
@@ -201,7 +221,12 @@ export function AiButton() {
     close();
   });
 
-  const generate = () => setPending({ action: 'generate' });
+  const generate = () => {
+    const q = prompt('О чём написать пост?');
+    if (!q || !q.trim()) { setOpen(false); return; }
+    setStep('tone');
+    setPending({ action: 'generate', text: q.trim() });
+  };
 
   return (
     <span className="group ai-group">
@@ -210,13 +235,19 @@ export function AiButton() {
         <button ref={btnRef} id="aiBtn"
           title={busy ? 'Остановить генерацию' : 'AI-помощник'}
           className={busy ? 'ai-busy' : ''}
-          onClick={() => { if (busy) stopAI(); else { setPending(null); setOpen((o) => !o); } }}>
+          onClick={() => { if (busy) stopAI(); else { setPending(null); setStep('tone'); setOpen((o) => !o); } }}>
           {busy
             ? <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
             : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>}
         </button>
         <Dropdown anchorRef={btnRef} open={open} onClose={close}>
-          {pending ? (
+          {!pending ? (
+            <>
+              <button onClick={rewrite}>Переписать выделенное</button>
+              <button onClick={format}>Оформить разметкой</button>
+              <button onClick={generate}>Написать с нуля…</button>
+            </>
+          ) : step === 'tone' ? (
             <>
               <button className="ai-menu-back" onClick={() => setPending(null)}>← Назад</button>
               <div className="ai-tone-label">Тон</div>
@@ -234,11 +265,32 @@ export function AiButton() {
               </button>
             </>
           ) : (
-            <>
-              <button onClick={rewrite}>Переписать выделенное</button>
-              <button onClick={format}>Оформить разметкой</button>
-              <button onClick={generate}>Написать с нуля…</button>
-            </>
+            <span className="ai-refs">
+              <button className="ai-menu-back" onClick={() => setStep('tone')}>← Назад</button>
+              <div className="ai-tone-label">Писать в стиле этих постов</div>
+              {published.length ? (
+                published.slice(0, 12).map((p) => (
+                  <button key={p.id} className="ai-ref"
+                    onClick={() => toggleRef(p.id)}
+                    disabled={!refs.includes(p.id) && refs.length >= REFS_MAX}>
+                    <span className="ai-ref-box">{refs.includes(p.id) ? '☑' : '☐'}</span>
+                    <span className="ai-ref-title">{p.title || 'Без заголовка'}</span>
+                    <span className="ai-ref-date">{fmtDate(p.when)}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="emoji-hint">
+                  Опубликованных постов пока нет — примеров стиля не будет.
+                  Они появятся здесь после первой публикации через студию.
+                </div>
+              )}
+              <hr className="ai-menu-sep" />
+              <button className="ai-run" onClick={execute}>
+                {refs.length
+                  ? `Написать (примеров: ${refs.length})`
+                  : 'Написать без примеров'}
+              </button>
+            </span>
           )}
         </Dropdown>
       </span>
