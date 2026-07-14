@@ -5,7 +5,7 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
-import { runAI, useAi } from '../../lib/aiStream';
+import { runAI, stopAI, markFragment, useAi } from '../../lib/aiStream';
 
 const sync = () => {
   const md = getEditorEl();
@@ -135,14 +135,18 @@ export function AiButton() {
 
   const rewrite = () => withSel((md, s, e) => {
     if (s === e) { toast('Выделите текст, который нужно переписать', true); return; }
-    void runAI('rewrite', md.value.slice(s, e), s, e);
+    /* фрагмент внутри целого поста — модель стыкует стиль с окружением */
+    const context = e - s < md.value.length ? markFragment(md.value, s, e) : undefined;
+    void runAI('rewrite', md.value.slice(s, e), s, e, context);
   });
 
   const format = () => withSel((md, s, e) => {
     const hasSel = s !== e;
     const text = hasSel ? md.value.slice(s, e) : md.value;
     if (!text.trim()) { toast('Пост пустой — оформлять нечего', true); return; }
-    void runAI('format', text, hasSel ? s : 0, hasSel ? e : md.value.length);
+    const context = hasSel && text.length < md.value.length
+      ? markFragment(md.value, s, e) : undefined;
+    void runAI('format', text, hasSel ? s : 0, hasSel ? e : md.value.length, context);
   });
 
   const generate = () => withSel((_md, s, e) => {
@@ -154,10 +158,14 @@ export function AiButton() {
   return (
     <span className="group ai-group">
       <span className="media-wrap">
-        <button ref={btnRef} id="aiBtn" title="AI-помощник"
+        {/* во время генерации кнопка превращается в «Стоп» */}
+        <button ref={btnRef} id="aiBtn"
+          title={busy ? 'Остановить генерацию' : 'AI-помощник'}
           className={busy ? 'ai-busy' : ''}
-          onClick={() => setOpen((o) => !o)}>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
+          onClick={() => { if (busy) stopAI(); else setOpen((o) => !o); }}>
+          {busy
+            ? <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>}
         </button>
         <Dropdown anchorRef={btnRef} open={open} onClose={() => setOpen(false)}>
           <button onClick={rewrite}>Переписать выделенное</button>

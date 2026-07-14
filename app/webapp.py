@@ -308,9 +308,12 @@ def ai(data: dict = Body(...), session: dict = Depends(session_required)):
     if not text:
         return JSONResponse({"ok": False, "error": "Пустой запрос."}, headers=NO_STORE)
 
+    # context — пост целиком с помеченным фрагментом (правка выделенного)
+    context = (data.get("context") or "").strip() or None
+
     def ndjson():
         # потоковый ответ: NDJSON-чанки по мере генерации модели
-        for chunk in core.ai_stream(data.get("action", ""), text):
+        for chunk in core.ai_stream(data.get("action", ""), text, context):
             yield (json.dumps(chunk, ensure_ascii=False) + "\n").encode()
 
     return StreamingResponse(ndjson(), media_type="application/x-ndjson; charset=utf-8",

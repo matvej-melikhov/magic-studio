@@ -5,25 +5,45 @@ import { toast } from '../store/toast';
 import { renderPreviewNow } from './previewBus';
 import { useSession } from '../store/session';
 
-/* AI-помощник: порт runAI из editor.html. Протокол — NDJSON-стрим
-   {t}/{error}/{done} из /api/ai (Ollama за сервером). Логика построчного
-   буфера сохранена точно: чанк может рваться посреди строки. */
+/* AI-помощник. Протокол — NDJSON-стрим {t}/{error}/{done} из /api/ai
+   (Ollama за сервером). Логика построчного буфера сохранена точно:
+   чанк может рваться посреди строки.
+
+   Для правок выделенного на сервер уходит и context: пост целиком
+   с фрагментом, помеченным <<< >>>, — модель видит окружение и
+   стыкует стиль (правка «вслепую» давала стилистические разрывы). */
 
 export const useAi = create<{ busy: boolean }>(() => ({ busy: false }));
 
 interface AiMsg { t?: string; error?: string; ok?: boolean }
+
+/* Маркеры фрагмента — те же, что в core.py (FRAG_OPEN/FRAG_CLOSE) */
+export function markFragment(full: string, selStart: number, selEnd: number): string {
+  return full.slice(0, selStart) + '<<<' + full.slice(selStart, selEnd) +
+    '>>>' + full.slice(selEnd);
+}
+
+let aborter: AbortController | null = null;
+
+/* Остановка генерации: сервер прервёт свой генератор, вставленный
+   к этому моменту текст остаётся (Ctrl+Z вернёт как было) */
+export function stopAI(): void {
+  aborter?.abort();
+}
 
 export async function runAI(
   action: 'rewrite' | 'format' | 'generate',
   text: string,
   selStart: number,
   selEnd: number,
+  context?: string,
 ): Promise<void> {
   const md = getEditorEl();
   if (!md) return;
   if (useAi.getState().busy) { toast('Модель ещё думает над прошлым запросом', true); return; }
   useAi.setState({ busy: true });
-  toast('Модель пишет…');
+  aborter = new AbortController();
+  toast('Модель пишет… (повторный клик по кнопке AI — остановить)');
   /* пока идёт стрим, редактор только для чтения — иначе ручной ввод
      собьёт позицию вставки; на момент вставки чанка флаг снимается,
      т.к. execCommand не работает в readonly-поле */
@@ -42,7 +62,8 @@ export async function runAI(
         'X-Session': lsStore.get('session') || '',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action, text }),
+      body: JSON.stringify({ action, text, context }),
+      signal: aborter.signal,
     });
     if (r.status === 401) {
       useSession.getState().showLogin();
@@ -70,9 +91,14 @@ export async function runAI(
     if (first) throw new Error('Модель вернула пустой ответ.');
     toast('Готово. Не понравилось — Ctrl+Z вернёт как было');
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    toast(msg === 'Failed to fetch' ? 'Сервер недоступен' : msg, true);
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      toast('Остановлено. Ctrl+Z уберёт вставленное');
+    } else {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast(msg === 'Failed to fetch' ? 'Сервер недоступен' : msg, true);
+    }
   }
+  aborter = null;
   md.readOnly = false;
   useAi.setState({ busy: false });
   lsStore.set('draft', md.value);

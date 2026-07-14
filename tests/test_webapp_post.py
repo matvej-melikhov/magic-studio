@@ -74,7 +74,8 @@ def test_schedule_validation(client, auth):
 def test_ai_stream_ndjson(client, auth, monkeypatch):
     token, _ = auth
     monkeypatch.setattr(core, "ai_stream",
-                        lambda action, text: iter([{"t": "При"}, {"t": "вет"}, {"done": True}]))
+                        lambda action, text, context=None:
+                        iter([{"t": "При"}, {"t": "вет"}, {"done": True}]))
     resp = client.post("/api/ai", json={"action": "rewrite", "text": "hi"},
                        headers={"X-Session": token})
     assert resp.status_code == 200
