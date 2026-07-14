@@ -13,7 +13,23 @@ import { useSession } from '../store/session';
    с фрагментом, помеченным <<< >>>, — модель видит окружение и
    стыкует стиль (правка «вслепую» давала стилистические разрывы). */
 
-export const useAi = create<{ busy: boolean }>(() => ({ busy: false }));
+/* lastRun — параметры последнего успешного запроса + диапазон, куда лёг
+   ответ: пока он не null, тулбар показывает кнопку «Ещё вариант» рядом
+   с AI-кнопкой (см. AiButton в ToolbarExtras.tsx). Сбрасывается в начале
+   каждого нового runAI и по любому другому действию пользователя. */
+export interface RegenerateInfo {
+  action: 'rewrite' | 'format' | 'generate';
+  text: string; selStart: number; selEnd: number;
+  context?: string; tone?: string; refs?: string[];
+}
+export const useAi = create<{ busy: boolean; lastRun: RegenerateInfo | null }>(
+  () => ({ busy: false, lastRun: null }),
+);
+
+export function regenerateLast(): void {
+  const r = useAi.getState().lastRun;
+  if (r) void runAI(r.action, r.text, r.selStart, r.selEnd, r.context, r.tone, r.refs);
+}
 
 interface AiMsg { t?: string; error?: string; ok?: boolean }
 
@@ -70,7 +86,7 @@ export async function runAI(
   const md = getEditorEl();
   if (!md) return;
   if (useAi.getState().busy) { toast('Модель ещё думает над прошлым запросом', true); return; }
-  useAi.setState({ busy: true });
+  useAi.setState({ busy: true, lastRun: null });
   aborter = new AbortController();
   toast('Модель пишет… (повторный клик по кнопке AI — остановить)');
   /* пока идёт стрим, редактор только для чтения — иначе ручной ввод
@@ -121,7 +137,12 @@ export async function runAI(
     }
     if (buf.trim()) handle(JSON.parse(buf)); // не-стримовый ответ (ранняя ошибка)
     if (first) throw new Error('Модель вернула пустой ответ.');
-    toast('Готово. Не понравилось — Ctrl+Z вернёт как было');
+    /* «Ещё вариант» — тот же запрос ещё раз, заменяя именно диапазон,
+       куда лёг этот ответ (selStart…pos), а не текст целиком */
+    useAi.setState({
+      lastRun: { action, text, selStart, selEnd: pos, context, tone, refs },
+    });
+    toast('Готово. Не понравилось — есть кнопка «Ещё вариант» или Ctrl+Z');
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       toast('Остановлено. Ctrl+Z уберёт вставленное');

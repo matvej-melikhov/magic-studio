@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Dropdown from './Dropdown';
 import { api } from '../../api/client';
 import { toast } from '../../store/toast';
@@ -8,7 +8,7 @@ import { lsStore } from '../../lib/lsStore';
 import { fmtDate } from '../../lib/format';
 import { useAppState } from '../../store/appState';
 import {
-  runAI, stopAI, markFragment, useAi,
+  runAI, stopAI, markFragment, useAi, regenerateLast,
   AI_TONE_PRESETS, getAiTone, setAiTonePreset, setAiToneCustom,
 } from '../../lib/aiStream';
 
@@ -138,16 +138,48 @@ type PendingRun = PendingRewrite | PendingGenerate;
 
 const REFS_MAX = 3;   // столько же берёт сервер (core.AI_REFS_MAX)
 
+/* клавиши, которые только двигают курсор/выделение, не редактируя текст —
+   ими не сбиваем кнопку «Ещё вариант» */
+const NAV_KEYS = new Set([
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End',
+  'PageUp', 'PageDown', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock',
+]);
+
 export function AiButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
+  const regenRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<PendingRun | null>(null);
   const [step, setStep] = useState<'tone' | 'refs'>('tone');
   const [toneKey, setToneKey] = useState('');
   const [refs, setRefs] = useState<string[]>([]);
   const busy = useAi((s) => s.busy);
+  const lastRun = useAi((s) => s.lastRun);
   const [tone, setTone] = useState(getAiTone());
   const published = useAppState((s) => s.published);
+
+  /* «Ещё вариант» видна, пока пользователь не сделает что-то ещё — но
+     просто клик по тексту (поставить курсор, выделить) не считается,
+     иначе кнопка пропадала бы раньше, чем ей успевают воспользоваться.
+     Убирают: печать (кроме чисто навигационных клавиш) и клик по чему-
+     угодно другому — другой кнопке, стилю и т.д. (см. lastRun в
+     aiStream.ts — сбрасывается там же в начале нового runAI). */
+  useEffect(() => {
+    if (!lastRun) return;
+    const dismiss = (e: Event) => {
+      const t = e.target as Element;
+      if (regenRef.current?.contains(t)) return;
+      if (e.type === 'pointerdown' && getEditorEl()?.contains(t)) return;
+      if (e.type === 'keydown' && NAV_KEYS.has((e as KeyboardEvent).key)) return;
+      useAi.setState({ lastRun: null });
+    };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', dismiss);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', dismiss);
+    };
+  }, [lastRun]);
 
   const close = () => { setOpen(false); setPending(null); setStep('tone'); };
 
@@ -294,6 +326,15 @@ export function AiButton() {
           )}
         </Dropdown>
       </span>
+      {!busy && lastRun && (
+        <button ref={regenRef} className="ai-regen" title="Не понравилось — сгенерировать ещё раз"
+          onClick={() => regenerateLast()}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 11A8 8 0 1 0 18.3 16.5"/>
+            <path d="M20 5v6h-6"/>
+          </svg>
+        </button>
+      )}
     </span>
   );
 }
