@@ -330,9 +330,14 @@ def ai(data: dict = Body(...), session: dict = Depends(session_required)):
     context = (data.get("context") or "").strip() or None
     tone = (data.get("tone") or "").strip()[:200] or None
     refs = _ai_refs(uid, data.get("refs"))
-    # дефолтный объём generate — типичная длина постов этого канала
-    published = storage.published_list(uid)
-    target_words = core.typical_post_words([p["markdown"] for p in published])
+    # объём generate: выбранный в UI, иначе типичная длина постов канала;
+    # явный размер в тексте запроса главнее обоих (см. build_ai_messages)
+    words = data.get("words")
+    if isinstance(words, int) and not isinstance(words, bool):
+        target_words = max(20, min(600, words))
+    else:
+        published = storage.published_list(uid)
+        target_words = core.typical_post_words([p["markdown"] for p in published])
 
     def ndjson():
         # потоковый ответ: NDJSON-чанки по мере генерации модели

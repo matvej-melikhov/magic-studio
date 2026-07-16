@@ -20,7 +20,7 @@ import { useSession } from '../store/session';
 export interface RegenerateInfo {
   action: 'rewrite' | 'format' | 'generate';
   text: string; selStart: number; selEnd: number;
-  context?: string; tone?: string; refs?: string[];
+  context?: string; tone?: string; refs?: string[]; words?: number;
 }
 export const useAi = create<{ busy: boolean; lastRun: RegenerateInfo | null }>(
   () => ({ busy: false, lastRun: null }),
@@ -28,8 +28,18 @@ export const useAi = create<{ busy: boolean; lastRun: RegenerateInfo | null }>(
 
 export function regenerateLast(): void {
   const r = useAi.getState().lastRun;
-  if (r) void runAI(r.action, r.text, r.selStart, r.selEnd, r.context, r.tone, r.refs);
+  if (r) void runAI(r.action, r.text, r.selStart, r.selEnd, r.context, r.tone, r.refs, r.words);
 }
+
+/* Пресеты объёма для generate; words undefined = «как обычно в канале»
+   (сервер возьмёт медиану опубликованных постов). Явный размер в тексте
+   запроса («в два предложения») главнее любого пресета. */
+export const AI_LEN_PRESETS: Array<{ key: string; label: string; words?: number }> = [
+  { key: '', label: 'Авто — как в канале' },
+  { key: 'short', label: 'Короткий (~50 слов)', words: 50 },
+  { key: 'medium', label: 'Средний (~150 слов)', words: 150 },
+  { key: 'long', label: 'Длинный (~400 слов)', words: 400 },
+];
 
 interface AiMsg { t?: string; error?: string; ok?: boolean }
 
@@ -82,6 +92,7 @@ export async function runAI(
   context?: string,
   tone?: string,
   refs?: string[],
+  words?: number,
 ): Promise<void> {
   const md = getEditorEl();
   if (!md) return;
@@ -122,7 +133,7 @@ export async function runAI(
       /* refs — id прошлых постов канала как образец стиля; сервер сам достаёт
          их markdown из БД. Пустой список = «без примеров» (не то же самое,
          что отсутствие поля — тогда сервер возьмёт последние посты сам). */
-      body: JSON.stringify({ action, text, context, tone, refs }),
+      body: JSON.stringify({ action, text, context, tone, refs, words }),
       signal: aborter.signal,
     });
     if (r.status === 401) {
@@ -168,7 +179,7 @@ export async function runAI(
     /* «Ещё вариант» — тот же запрос ещё раз, заменяя именно диапазон,
        куда лёг этот ответ (selStart…pos), а не текст целиком */
     useAi.setState({
-      lastRun: { action, text, selStart, selEnd: pos, context, tone, refs },
+      lastRun: { action, text, selStart, selEnd: pos, context, tone, refs, words },
     });
     toast('Готово. Не понравилось — есть кнопка «Ещё вариант» или Ctrl+Z');
   } catch (e) {

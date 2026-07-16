@@ -9,7 +9,7 @@ import { fmtDate } from '../../lib/format';
 import { useAppState } from '../../store/appState';
 import {
   runAI, stopAI, markFragment, useAi, regenerateLast,
-  AI_TONE_PRESETS, getAiTone, setAiTonePreset, setAiToneCustom,
+  AI_TONE_PRESETS, AI_LEN_PRESETS, getAiTone, setAiTonePreset, setAiToneCustom,
 } from '../../lib/aiStream';
 
 const sync = () => {
@@ -150,8 +150,9 @@ export function AiButton() {
   const regenRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<PendingRun | null>(null);
-  const [step, setStep] = useState<'tone' | 'refs'>('tone');
+  const [step, setStep] = useState<'tone' | 'len' | 'refs'>('tone');
   const [toneKey, setToneKey] = useState('');
+  const [lenKey, setLenKey] = useState(lsStore.get('aiLen') || '');
   const [refs, setRefs] = useState<string[]>([]);
   const busy = useAi((s) => s.busy);
   const lastRun = useAi((s) => s.lastRun);
@@ -183,17 +184,19 @@ export function AiButton() {
 
   const close = () => { setOpen(false); setPending(null); setStep('tone'); };
 
-  /* по умолчанию — последние посты канала; их же сервер взял бы сам */
-  const toRefs = (key: string) => {
+  /* после тона: у generate — экран объёма, у rewrite объём не выбирается
+     (правило «как у исходника»), сразу к референсам; дефолтные референсы —
+     последние посты канала, их же сервер взял бы сам */
+  const afterTone = (key: string) => {
     setToneKey(key);
     setRefs(published.slice(0, REFS_MAX).map((p) => p.id));
-    setStep('refs');
+    setStep(pending?.action === 'generate' ? 'len' : 'refs');
   };
 
   const pickTonePreset = (key: string) => {
     setAiTonePreset(key);
     setTone(getAiTone());
-    toRefs(key);
+    afterTone(key);
   };
 
   const pickCustomTone = () => {
@@ -204,7 +207,23 @@ export function AiButton() {
     if (text === null) return;
     const toneText = text.trim();
     if (toneText) { setAiToneCustom(toneText); setTone(getAiTone()); }
-    toRefs(toneText);
+    afterTone(toneText);
+  };
+
+  const pickLen = (key: string) => {
+    setLenKey(key);
+    lsStore.set('aiLen', key);
+    setStep('refs');
+  };
+
+  const pickCustomLen = () => {
+    const prev = lsStore.get('aiLenCustom') || '250';
+    const raw = prompt('Сколько слов в посте (примерно, 20–600)?', prev);
+    if (raw === null) return;
+    const n = parseInt(raw, 10);
+    if (!n || n <= 0) { toast('Нужно число слов, например 250', true); return; }
+    lsStore.set('aiLenCustom', String(Math.max(20, Math.min(600, n))));
+    pickLen('custom');
   };
 
   const toggleRef = (id: string) => setRefs((cur) => (
@@ -220,10 +239,13 @@ export function AiButton() {
     if (run.action === 'generate') {
       const md = getEditorEl();
       if (!md) return;
+      const words = lenKey === 'custom'
+        ? parseInt(lsStore.get('aiLenCustom') || '', 10) || undefined
+        : AI_LEN_PRESETS.find((p) => p.key === lenKey)?.words;
       /* «с нуля» — новый пост вместо текущего: выделяем всё, сгенерированный
          текст заменит содержимое (вставка идёт через execCommand, Ctrl+Z вернёт) */
       void runAI('generate', run.text, 0, md.value.length, undefined,
-        toneKey || undefined, refs);
+        toneKey || undefined, refs, words);
     } else {
       void runAI('rewrite', run.text, run.s, run.e, run.context,
         toneKey || undefined, refs);
@@ -296,9 +318,29 @@ export function AiButton() {
                   ? `✓ Свой: ${tone.custom}` : 'Свой…'}
               </button>
             </>
+          ) : step === 'len' ? (
+            <>
+              <button className="ai-menu-back" onClick={() => setStep('tone')}>← Назад</button>
+              <div className="ai-tone-label">Объём</div>
+              {AI_LEN_PRESETS.map((p) => (
+                <button key={p.key || 'auto'}
+                  className={lenKey === p.key ? 'ai-tone-active' : ''}
+                  onClick={() => pickLen(p.key)}>
+                  {lenKey === p.key ? '✓ ' : ''}{p.label}
+                </button>
+              ))}
+              <button className={lenKey === 'custom' ? 'ai-tone-active' : ''}
+                onClick={pickCustomLen}>
+                {lenKey === 'custom'
+                  ? `✓ Свой: ~${lsStore.get('aiLenCustom')} слов` : 'Свой…'}
+              </button>
+            </>
           ) : (
             <span className="ai-refs">
-              <button className="ai-menu-back" onClick={() => setStep('tone')}>← Назад</button>
+              <button className="ai-menu-back"
+                onClick={() => setStep(pending.action === 'generate' ? 'len' : 'tone')}>
+                ← Назад
+              </button>
               <div className="ai-tone-label">Писать в стиле этих постов</div>
               {published.length ? (
                 published.slice(0, 12).map((p) => (

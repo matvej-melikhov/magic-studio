@@ -88,6 +88,31 @@ def test_ai_stream_ndjson(client, auth, monkeypatch):
     assert resp.json()["error"] == "Пустой запрос."
 
 
+def test_ai_words_param(client, auth, monkeypatch):
+    """Объём из UI: валидное число уходит в target_words (с ограничением),
+    мусор игнорируется в пользу серверного дефолта."""
+    token, _ = auth
+    seen = {}
+
+    def fake_stream(action, text, context=None, tone=None,
+                    refs=None, target_words=None):
+        seen["words"] = target_words
+        return iter([{"done": True}])
+
+    monkeypatch.setattr(core, "ai_stream", fake_stream)
+    for sent, expect in ((400, 400), (5, 20), (9999, 600)):
+        client.post("/api/ai", json={"action": "generate", "text": "т",
+                                     "words": sent},
+                    headers={"X-Session": token})
+        assert seen["words"] == expect, sent
+    # не-число и отсутствие поля — серверный дефолт (медиана/константа)
+    for bad in ("много", None, True):
+        client.post("/api/ai", json={"action": "generate", "text": "т",
+                                     "words": bad},
+                    headers={"X-Session": token})
+        assert seen["words"] == core.AI_DEFAULT_WORDS, bad
+
+
 def test_channels_add_verifies_admin(client, auth, monkeypatch):
     token, _ = auth
     monkeypatch.setattr(core, "verify_channel_admin",
