@@ -51,6 +51,29 @@ def test_tone_empty_changes_nothing():
     with_none = core.build_ai_messages("generate", "текст", tone=None)
     with_empty = core.build_ai_messages("generate", "текст", tone="  ")
     assert with_none[0]["content"] == with_empty[0]["content"]
+    assert with_none[-1]["content"] == with_empty[-1]["content"] == "текст"
+
+
+def test_tone_reminder_in_user_message():
+    # подпись тона дублируется в конце запроса — рядом с местом генерации
+    msgs = core.build_ai_messages("generate", "текст", tone="business")
+    assert core.AI_TONE_LABELS["business"] in msgs[-1]["content"]
+    # и при правке фрагмента с контекстом тоже
+    ctx = f"начало {core.FRAG_OPEN}фрагмент{core.FRAG_CLOSE} конец"
+    msgs = core.build_ai_messages("rewrite", "фрагмент", context=ctx, tone="expert")
+    assert core.AI_TONE_LABELS["expert"] in msgs[-1]["content"]
+
+
+def test_tone_reminder_not_in_format():
+    msgs = core.build_ai_messages("format", "текст", tone="business")
+    assert msgs[-1]["content"] == "текст"
+
+
+def test_generate_default_example_has_no_markup():
+    # первый few-shot пример generate — обычный текст: именно он задаёт
+    # дефолт «без разметки», который ломался жирным в каждом посте
+    first_answer = core.AI_ACTIONS["generate"]["examples"][0][1]
+    assert not any(m in first_answer for m in ("**", "==", "#"))
 
 
 # ── посты-референсы (rewrite/generate) ──────────────
