@@ -325,14 +325,19 @@ def ai(data: dict = Body(...), session: dict = Depends(session_required)):
     if not text:
         return JSONResponse({"ok": False, "error": "Пустой запрос."}, headers=NO_STORE)
 
+    uid = session["user_id"]
     # context — пост целиком с помеченным фрагментом (правка выделенного)
     context = (data.get("context") or "").strip() or None
     tone = (data.get("tone") or "").strip()[:200] or None
-    refs = _ai_refs(session["user_id"], data.get("refs"))
+    refs = _ai_refs(uid, data.get("refs"))
+    # дефолтный объём generate — типичная длина постов этого канала
+    published = storage.published_list(uid)
+    target_words = core.typical_post_words([p["markdown"] for p in published])
 
     def ndjson():
         # потоковый ответ: NDJSON-чанки по мере генерации модели
-        for chunk in core.ai_stream(data.get("action", ""), text, context, tone, refs):
+        for chunk in core.ai_stream(data.get("action", ""), text, context,
+                                    tone, refs, target_words):
             yield (json.dumps(chunk, ensure_ascii=False) + "\n").encode()
 
     return StreamingResponse(ndjson(), media_type="application/x-ndjson; charset=utf-8",

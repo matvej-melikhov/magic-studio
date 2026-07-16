@@ -147,6 +147,32 @@ AI_TONE_LABELS: dict[str, str] = {
 AI_REFS_MAX = 3
 AI_REFS_CHARS = 1200
 
+# Целевой объём generate по умолчанию — медиана длины опубликованных постов
+# канала; без публикаций — AI_DEFAULT_WORDS. Границы отсекают выбросы
+# (посты-«тесты» из пары слов и разовые лонгриды).
+AI_DEFAULT_WORDS = 100
+AI_WORDS_MIN, AI_WORDS_MAX = 40, 300
+_MIN_SAMPLE_WORDS = 20   # короче — тестовые посты и голые медиа, не считаем
+
+
+# Пользователь сам задал объём в запросе — дефолтную подпись не добавляем
+_EXPLICIT_LEN_RE = re.compile(
+    r"\d+\s*(?:слов|знак|символ|предложен|абзац)"
+    r"|коротк|кратк|длинн|подробн|развёрнут|лонгрид"
+    r"|пар[уа]\s+(?:слов|предложений|абзацев)",
+    re.IGNORECASE,
+)
+
+
+def typical_post_words(posts: list[str]) -> int:
+    """Типичная длина поста канала в словах (медиана, с ограничением)."""
+    counts = sorted(n for p in posts
+                    if p and (n := len(re.findall(r"\S+", p))) >= _MIN_SAMPLE_WORDS)
+    if not counts:
+        return AI_DEFAULT_WORDS
+    median = counts[len(counts) // 2]
+    return max(AI_WORDS_MIN, min(AI_WORDS_MAX, median))
+
 
 def _refs_instruction(refs: list[str] | None) -> str:
     """Примеры постов канала как образец авторского стиля."""
@@ -261,10 +287,11 @@ AI_ACTIONS = {
             "пишешь готовый пост.\n\n"
             "Правила:\n"
             "1. Язык поста = язык запроса.\n"
-            "2. По умолчанию пост КОРОТКИЙ: 2–4 предложения, без заголовков "
-            "и списков — как обычный пост в канале. Развёрнутый пиши только "
-            "если просят прямо («подробно», «длинный», «со списком», "
-            "указан объём).\n"
+            "2. Объём по умолчанию — примерно __WORDS__ слов: столько обычно "
+            "занимает пост в этом канале. Заголовки и списки в посте такого "
+            "размера не нужны. Если пользователь сам задал объём («коротко», "
+            "«пара предложений», «подробно», «длинный», «со списком», "
+            "конкретное число) — его просьба важнее этого правила.\n"
             "3. По умолчанию — обычный текст ВООБЩЕ БЕЗ разметки: у хорошего "
             "короткого поста выделять нечего. **Жирный** или ==маркер== — "
             "только когда в тексте есть конкретный факт, который читатель "
@@ -282,11 +309,22 @@ AI_ACTIONS = {
             + AI_FORMAT_GUIDE
         ),
         "examples": [
+            # первый пример — эталон дефолтного объёма (~AI_DEFAULT_WORDS слов):
+            # число в правиле модель недобирает, длину примера — держит
             (
                 "пост о том, что завтра выйдет большое обновление бота",
-                "Завтра выкатываем большое обновление бота. Починили всё, "
-                "на что вы жаловались, и добавили пару вещей, о которых вы "
-                "ещё не просили. Следите за новостями — будет подробный разбор.",
+                "Завтра выкатываем большое обновление бота. Главное, что "
+                "изменится: починили отложенную отправку, из-за которой посты "
+                "иногда уходили с опозданием, ускорили загрузку медиа и "
+                "переработали вставку ссылок — превью теперь подтягивается "
+                "сразу. Ещё добавили пару вещей, о которых вы не просили, но "
+                "которые давно напрашивались: тёмную тему в настройках и "
+                "дубль поста одной кнопкой.\n\n"
+                "Обновление прилетит всем автоматически в течение дня, ничего "
+                "делать не нужно. Если после апдейта что-то поведёт себя "
+                "странно — напишите в комментариях, такое чиним в первую "
+                "очередь. Подробный разбор всех изменений выйдет отдельным "
+                "постом на выходных.",
             ),
             (
                 "пост: запись на вебинар закроется в пятницу в 18:00",
@@ -308,6 +346,8 @@ AI_ACTIONS = {
                 "Начните с одного поста в неделю — этого достаточно.",
             ),
         ],
+        # 2048 токенов ≈ 800 русских слов: просьба о более длинном посте
+        # упрётся в потолок — осознанный компромисс против залипания модели
         "options": {"temperature": 0.8, "num_predict": 2048},
     },
 }
@@ -321,18 +361,22 @@ AI_KEEP_ALIVE = -1
 
 def build_ai_messages(action: str, text: str, context: str | None = None,
                        tone: str | None = None,
-                       refs: list[str] | None = None) -> list[dict]:
+                       refs: list[str] | None = None,
+                       target_words: int | None = None) -> list[dict]:
     """Собирает историю чата: system + few-shot примеры + запрос.
 
     context — пост целиком с фрагментом, помеченным FRAG_OPEN/FRAG_CLOSE
     (правка выделенного): модель видит окружение и стыкует стиль.
     tone — пресет тона или произвольное описание.
     refs — markdown прошлых постов канала как образец авторского стиля.
+    target_words — целевой объём generate по умолчанию (медиана длины
+    постов канала, см. typical_post_words).
     tone и refs только для rewrite/generate: format не меняет слова,
     поэтому стиль там неприменим.
     """
     conf = AI_ACTIONS[action]
-    system = conf["system"]
+    system = conf["system"].replace(
+        "__WORDS__", str(target_words or AI_DEFAULT_WORDS))
     tone_applies = action in ("rewrite", "generate")
     if tone_applies:
         for extra in (_tone_instruction(tone), _refs_instruction(refs)):
@@ -350,12 +394,18 @@ def build_ai_messages(action: str, text: str, context: str | None = None,
         )
     else:
         content = text
-    # Напоминание тона в самом запросе: инструкция в начале system-промпта
-    # к моменту генерации «выветривается», подпись рядом с запросом — нет
+    # Напоминания рядом с запросом: инструкция в начале system-промпта
+    # к моменту генерации «выветривается», подпись возле запроса — нет
     tone_clean = (tone or "").strip()
     if tone_applies and tone_clean:
         label = AI_TONE_LABELS.get(tone_clean, tone_clean[:200])
         content = f"{content}\n\nТон ответа: {label}."
+    # Дефолтный объём — только когда пользователь не задал свой: подпись
+    # в хвосте запроса весит больше текста самого запроса и перебивала бы
+    # явное «объём примерно 1000 слов» из его середины
+    if action == "generate" and not _EXPLICIT_LEN_RE.search(text):
+        content = (f"{content}\n\nОбъём: примерно "
+                   f"{target_words or AI_DEFAULT_WORDS} слов.")
     messages.append({"role": "user", "content": content})
     return messages
 
@@ -395,7 +445,8 @@ def _clean_stream(parts):
 
 
 def ai_stream(action: str, text: str, context: str | None = None,
-              tone: str | None = None, refs: list[str] | None = None):
+              tone: str | None = None, refs: list[str] | None = None,
+              target_words: int | None = None):
     """Генератор чанков ответа модели: {'t': текст} | {'error': …} | {'done': True}."""
     conf = AI_ACTIONS.get(action)
     if not conf:
@@ -411,7 +462,8 @@ def ai_stream(action: str, text: str, context: str | None = None,
                 "stream": True,
                 "think": False,
                 "keep_alive": AI_KEEP_ALIVE,
-                "messages": build_ai_messages(action, text, context, tone, refs),
+                "messages": build_ai_messages(action, text, context, tone,
+                                              refs, target_words),
                 "options": {**conf["options"], "num_ctx": AI_NUM_CTX},
             },
             stream=True,
