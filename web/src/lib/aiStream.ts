@@ -91,13 +91,25 @@ export async function runAI(
   toast('Модель пишет… (повторный клик по кнопке AI — остановить)');
   /* пока идёт стрим, редактор только для чтения — иначе ручной ввод
      собьёт позицию вставки; на момент вставки чанка флаг снимается,
-     т.к. execCommand не работает в readonly-поле */
+     т.к. execCommand не работает в readonly-поле.
+     spellcheck на время стрима гасим: execCommand — это «печать» для
+     браузера, и умные замены Safari превращали --- модели в длинное
+     тире прямо в textarea (артефакт-«разделитель»); заодно off и
+     autocapitalize, чтобы iOS не поднимал регистр после точек */
   md.readOnly = true;
-  let pos = selStart, first = true;
+  const prevSpell = md.spellcheck;
+  const prevCap = md.autocapitalize;
+  md.spellcheck = false;
+  md.autocapitalize = 'off';
+  /* expected — точный текст от сервера; pos — по фактической каретке,
+     а не арифметикой: умные замены браузера меняют длину вставленного */
+  let pos = selStart, first = true, expected = '';
   const put = (t: string) => {
     md.readOnly = false;
-    if (first) { typeText(t, selStart, selEnd); first = false; pos = selStart + t.length; }
-    else { typeText(t, pos, pos); pos += t.length; }
+    if (first) { typeText(t, selStart, selEnd); first = false; }
+    else typeText(t, pos, pos);
+    pos = md.selectionStart;
+    expected += t;
     md.readOnly = true;
   };
   try {
@@ -137,6 +149,22 @@ export async function runAI(
     }
     if (buf.trim()) handle(JSON.parse(buf)); // не-стримовый ответ (ранняя ошибка)
     if (first) throw new Error('Модель вернула пустой ответ.');
+    /* Сверка: браузер мог «поумничать» при вставке (умные тире Safari
+       превращали --- в —). Фактически вставленное сравнивается с текстом
+       от сервера; разошлось — перевставляем правильный одной заменой
+       (плюс один шаг в истории отмены). Если браузер испортил и повторную
+       вставку — setRangeText кладёт текст в обход пайплайна печати. */
+    const actual = md.value.slice(selStart, pos);
+    if (actual !== expected) {
+      md.readOnly = false;
+      typeText(expected, selStart, pos);
+      pos = md.selectionStart;
+      if (md.value.slice(selStart, pos) !== expected) {
+        md.setRangeText(expected, selStart, pos, 'end');
+        pos = selStart + expected.length;
+      }
+      md.readOnly = true;
+    }
     /* «Ещё вариант» — тот же запрос ещё раз, заменяя именно диапазон,
        куда лёг этот ответ (selStart…pos), а не текст целиком */
     useAi.setState({
@@ -153,6 +181,8 @@ export async function runAI(
   }
   aborter = null;
   md.readOnly = false;
+  md.spellcheck = prevSpell;
+  md.autocapitalize = prevCap;
   useAi.setState({ busy: false });
   lsStore.set('draft', md.value);
   renderPreviewNow();
