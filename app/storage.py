@@ -208,10 +208,21 @@ def epack_add(uid: int, set_name: str, title: str,
 def epacks_list(uid: int) -> list[dict]:
     with _db() as conn:
         rows = conn.execute(
-            "SELECT p.id, p.title AS name, COUNT(e.emoji_id) AS count "
+            "SELECT p.id, p.set_name, p.title AS name, COUNT(e.emoji_id) AS count "
             "FROM emoji_packs p LEFT JOIN emojis e "
             "  ON e.pack_id = p.id AND e.user_id = p.user_id "
             "WHERE p.user_id=? GROUP BY p.id ORDER BY p.created", (uid,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def epacks_top(limit: int = 10) -> list[dict]:
+    """Самые устанавливаемые паки среди всех пользователей сервиса."""
+    with _db() as conn:
+        rows = conn.execute(
+            "SELECT set_name, MAX(title) AS title, "
+            "COUNT(DISTINCT user_id) AS users "
+            "FROM emoji_packs GROUP BY set_name "
+            "ORDER BY users DESC, MAX(created) DESC LIMIT ?", (limit,)).fetchall()
     return [dict(r) for r in rows]
 
 

@@ -5,6 +5,7 @@
 Форматы ответов сохранены: {"ok": ...} и 401 {"ok": false, "error": "auth"}.
 """
 
+import asyncio
 import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -104,21 +105,36 @@ def state(session: dict = Depends(session_required)):
 
 
 @app.get("/api/emojis")
-def emojis(session: dict = Depends(session_required)):
+async def emojis(session: dict = Depends(session_required)):
     uid = session["user_id"]
     groups = [{"id": p["id"], "name": p["name"],
                "emojis": storage.emojis_by_pack(uid, p["id"])}
               for p in storage.epacks_list(uid)]
+    # пикер открывается — фоном прогреваем кэш картинок всего списка,
+    # чтобы <img> ниже попадали в готовое, а не ходили в Telegram по одной
+    ids = [e["emoji_id"] for g in groups for e in g["emojis"]]
+    if ids:
+        asyncio.get_running_loop().create_task(core.prefetch_emojis(ids))
     return JSONResponse({"ok": True, "groups": groups}, headers=NO_STORE)
 
 
+@app.get("/api/emoji/catalog")
+def emoji_catalog(session: dict = Depends(session_required)):
+    return JSONResponse({"ok": True, "packs": core.emoji_catalog(session["user_id"])},
+                        headers=NO_STORE)
+
+
 @app.get("/api/emoji/img")
-def emoji_img(id: str = ""):
+async def emoji_img(id: str = ""):
     # без сессии: <img> не умеет слать заголовки; отдаём только картинку
-    img = core.fetch_emoji_image(id) if id.isdigit() and len(id) <= 32 else None
+    img = await core.emoji_image(id) if id.isdigit() and len(id) <= 32 else None
     if not img:
-        return Response("emoji not found", status_code=404, media_type="text/plain")
-    return Response(img[0], media_type=img[1], headers=NO_STORE)
+        # 404 не кешируем: у битого эмодзи должен быть шанс на повтор
+        return Response("emoji not found", status_code=404,
+                        media_type="text/plain", headers=NO_STORE)
+    # картинка для id неизменна — браузер запоминает её навсегда
+    return Response(img[0], media_type=img[1],
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/{rest:path}")
@@ -299,6 +315,18 @@ def schedule_publish_now(data: dict = Body(...),
     message_id = result.get("message_id") if ok else None
     storage.sched_finish(post, ok, None if ok else str(result), message_id)
     return JSONResponse({"ok": ok, "error": None if ok else str(result)},
+                        headers=NO_STORE)
+
+
+@app.post("/api/emoji/packs/add")
+def emoji_pack_add(data: dict = Body(...), session: dict = Depends(session_required)):
+    set_name = core.parse_pack_link(str(data.get("link", "")))
+    if not set_name:
+        return JSONResponse({"ok": False, "error":
+                             "Нужна ссылка вида t.me/addemoji/… или имя пака."},
+                            headers=NO_STORE)
+    ok, result = core.import_emoji_pack(session["user_id"], set_name)
+    return JSONResponse({"ok": ok, ("title" if ok else "error"): result},
                         headers=NO_STORE)
 
 

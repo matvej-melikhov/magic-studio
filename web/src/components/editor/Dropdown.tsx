@@ -26,12 +26,15 @@ export default function Dropdown({ anchorRef, open, onClose, className, children
 
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => {
+    /* pointerdown, а не click: между нажатием и click React может успеть
+       переставить DOM (например, обновив «Последние» в пикере) — и цель
+       клика окажется вне меню, хотя нажимали внутрь */
+    const close = (e: PointerEvent) => {
       const t = e.target as Element;
       if (!menuRef.current?.contains(t) && !anchorRef.current?.contains(t)) onClose();
     };
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
   }, [open, onClose, anchorRef]);
 
   if (!open) return null;

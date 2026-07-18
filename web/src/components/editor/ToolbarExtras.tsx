@@ -5,6 +5,9 @@ import { toast } from '../../store/toast';
 import { insert, insertBlock, getEditorEl } from '../../lib/insert';
 import { renderPreviewNow } from '../../lib/previewBus';
 import { lsStore } from '../../lib/lsStore';
+import { emojiKey, pruneRecent, pushRecent, type EmojiRef } from '../../lib/recentEmojis';
+import { standardEmojis } from '../../lib/standardEmojis';
+import { maxEmojiVersion } from '../../lib/emojiSupport';
 import { runAI, useAi } from '../../lib/aiStream';
 
 const sync = () => {
@@ -14,23 +17,65 @@ const sync = () => {
 };
 
 /* ── Кастомные эмодзи: пикер из сохранённых через бота ── */
-interface EmojiGroup { id: string; name: string; emojis: Array<{ emoji_id: string; alt: string }> }
+interface EmojiGroup { id: string; name: string; emojis: EmojiRef[] }
+interface CatalogPack { set_name: string; title: string; users: number; installed: boolean }
+
+/* кнопка одного эмодзи: кастомный — картинка по id, стандартный — символ.
+   Живёт вне EmojiButton: компонент, объявленный внутри рендера, менял бы
+   тип на каждый setState — React пересоздавал бы кнопки, а клик по
+   удалённому узлу Dropdown принимал за «клик вне» и закрывал пикер. */
+function EmBtn({ e, pick }: { e: EmojiRef; pick: (e: EmojiRef) => void }) {
+  return (
+    <button className="em" title={e.alt} onClick={() => pick(e)}>
+      {e.emoji_id
+        ? <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
+            onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
+        : <span className="uni">{e.alt}</span>}
+    </button>
+  );
+}
 
 export function EmojiButton() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [groups, setGroups] = useState<EmojiGroup[]>([]);
+  const [recent, setRecent] = useState<EmojiRef[]>([]);
+  const [catalog, setCatalog] = useState<CatalogPack[]>([]);
+
+  const reload = async () => {
+    const resp = await api('/api/emojis');
+    const gr = (resp.ok && (resp.groups as EmojiGroup[])) || [];
+    setGroups(gr);
+    // кастомные эмодзи удалённых паков выпадают и из «Последних»
+    const alive = new Set(gr.flatMap((g) => g.emojis.map((e) => e.emoji_id)));
+    setRecent(pruneRecent((e) => !e.emoji_id || alive.has(e.emoji_id)));
+    const cat = await api('/api/emoji/catalog');
+    setCatalog((cat.ok && (cat.packs as CatalogPack[])) || []);
+  };
 
   const toggle = async () => {
     if (open) { setOpen(false); return; }
-    const resp = await api('/api/emojis');
-    setGroups((resp.ok && (resp.groups as EmojiGroup[])) || []);
+    await reload();
     setOpen(true);
   };
 
-  const pick = (e: { emoji_id: string; alt: string }) => {
-    setOpen(false);
-    insert(`![${e.alt}](tg://emoji?id=${e.emoji_id})`, '', '');
+  const installPack = async (setName: string) => {
+    const resp = await api('/api/emoji/packs/add', { link: setName });
+    if (resp.ok) { toast(`Пак «${resp.title}» добавлен`); void reload(); }
+    else toast(resp.error || 'Ошибка', true);
+  };
+
+  const addByLink = () => {
+    const link = prompt('Ссылка на пак (t.me/addemoji/…) или его имя:');
+    if (link?.trim()) void installPack(link.trim());
+  };
+
+  /* пикер не закрывается: можно вставить несколько эмодзи подряд;
+     закрытие — кнопкой пикера или кликом вне меню (Dropdown) */
+  const pick = (e: EmojiRef) => {
+    setRecent(pushRecent(e));
+    // кастомный — rich-синтаксис, стандартный — просто символ в текст
+    insert(e.emoji_id ? `![${e.alt}](tg://emoji?id=${e.emoji_id})` : e.alt, '', '');
     sync();
   };
 
@@ -42,26 +87,44 @@ export function EmojiButton() {
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M5.4 9.4c.6 1 1.5 1.6 2.6 1.6s2-.6 2.6-1.6"/><circle cx="5.9" cy="6.3" r=".65" fill="currentColor" stroke="none"/><circle cx="10.1" cy="6.3" r=".65" fill="currentColor" stroke="none"/></svg>
       </button>
       <Dropdown anchorRef={btnRef} open={open} onClose={() => setOpen(false)} className="emoji-menu">
+        {recent.length > 0 && (
+          <span style={{ display: 'contents' }}>
+            <div className="egroup">Последние</div>
+            {recent.map((e) => <EmBtn key={'recent-' + emojiKey(e)} e={e} pick={pick} />)}
+          </span>
+        )}
+        {/* кастомные паки — всегда выше стандартных */}
         {groups.length ? (
           groups.map((g, gi) => (
             <span key={g.id} style={{ display: 'contents' }}>
               {g.name
                 ? <div className="egroup">{g.name}</div>
                 : groups.length > 1 && <div className="egroup">Без группы</div>}
-              {g.emojis.map((e) => (
-                <button key={e.emoji_id + gi} className="em" title={e.alt} onClick={() => pick(e)}>
-                  <img src={`api/emoji/img?id=${e.emoji_id}`} alt={e.alt} loading="lazy"
-                    onError={(ev) => ev.currentTarget.closest('button')?.remove()} />
-                </button>
-              ))}
+              {g.emojis.map((e) => <EmBtn key={emojiKey(e) + gi} e={e} pick={pick} />)}
             </span>
           ))
         ) : (
           <div className="emoji-hint">
-            Коллекций пока нет. В боте: /emoji → «Добавить паки» → пришлите
-            сообщение с кастомными эмодзи — их паки добавятся целиком.
+            Кастомных коллекций пока нет. В боте: /emoji → «Добавить паки» →
+            пришлите сообщение с кастомными эмодзи — их паки добавятся целиком.
           </div>
         )}
+        <span style={{ display: 'contents' }}>
+            <div className="egroup">Паки</div>
+            {catalog.filter((p) => !p.installed).map((p) => (
+              <button key={p.set_name} className="packrow"
+                onClick={() => void installPack(p.set_name)}>
+                ➕ {p.title}{p.users ? ` · ${p.users} 👤` : ''}
+              </button>
+            ))}
+            <button className="packrow" onClick={addByLink}>🔗 Добавить пак по ссылке…</button>
+        </span>
+        {standardEmojis(maxEmojiVersion()).map((cat) => (
+          <span key={cat.name} style={{ display: 'contents' }}>
+            <div className="egroup">{cat.name}</div>
+            {cat.chars.map((ch) => <EmBtn key={ch} e={{ alt: ch }} pick={pick} />)}
+          </span>
+        ))}
       </Dropdown>
     </span>
   );
