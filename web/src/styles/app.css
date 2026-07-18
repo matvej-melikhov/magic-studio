@@ -1,13 +1,15 @@
   @import './unbounded.css'; /* фирменный шрифт для имени Magic Studio */
 
   :root {
-    /* «Студия»-flat: воздух, белые панели, hairline-границы,
-       один градиентный акцент */
-    --bg: #F6F8FB; --surface: #FFFFFF; --ink: #18202B; --muted: #77839B;
-    --line: #E7EBF1; --line-soft: #EFF2F7;
-    --accent: #2AABEE; --accent-hover: #1D9AD9; --accent-ink: #FFFFFF;
+    /* Aurora: дрейфующие пятна за стеклянными панелями,
+       градиентный акцент, капсулы */
+    --bg: #F3F6FB; --surface: #FFFFFF; --ink: #18202B; --muted: #77839B;
+    --line: rgba(24, 32, 43, .10); --line-soft: rgba(24, 32, 43, .07);
+    --glass: rgba(255, 255, 255, .62);
+    --a1: rgba(42, 171, 238, .22); --a2: rgba(99, 102, 241, .20); --a3: rgba(155, 92, 246, .18);
+    --accent: #1D9AD9; --accent-hover: #1786BF; --accent-ink: #FFFFFF;
     --accent2: #6366F1;
-    --grad: linear-gradient(135deg, #2AABEE 0%, #6366F1 100%);
+    --grad: linear-gradient(135deg, #2AABEE, #6366F1 55%, #9B5CF6);
     --danger: #E0564A; --ok: #3FA56C; --pending: #C08A2D;
     /* Точные цвета tdesktop (classic light): windowFg, msgInBg, windowBgOver,
        windowSubTextFg, windowActiveTextFg, inputBorderFg, msgInDateFg */
@@ -16,18 +18,21 @@
     --tg-link: #168ACD; --tg-code-bg: #F1F1F1; --tg-quote: #168ACD;
     --tg-sub: #999999; --tg-border: #E0E0E0;
     --shadow-card: none;
-    /* бинарные радиусы: интерактив — капсулы, поверхности — прямые углы */
-    --r-pill: 6px; --r-flat: 6px;
+    /* интерактив — капсулы, поверхности — мягкие радиусы */
+    --r-pill: 99px; --r-flat: 14px;
+    --r-panel: 20px;
     --shadow-bubble: 0 1px 2px rgba(16,35,47,.12);
   }
   :root[data-theme="dark"], :root.dark { color-scheme: dark; }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0E141C; --surface: #161E29; --ink: #ECF1F7; --muted: #7C89A0;
-      --line: #212B38; --line-soft: #1C2531;
-      --accent: #4DB4F0; --accent-hover: #66C0F5; --accent-ink: #FFFFFF;
+      --bg: #0B0F17; --surface: #151C29; --ink: #ECF1F7; --muted: #8A94A8;
+      --line: rgba(138, 148, 168, .16); --line-soft: rgba(138, 148, 168, .10);
+      --glass: rgba(22, 28, 40, .55);
+      --a1: rgba(42, 171, 238, .20); --a2: rgba(99, 102, 241, .20); --a3: rgba(155, 92, 246, .16);
+      --accent: #4FB6F0; --accent-hover: #66C0F5; --accent-ink: #FFFFFF;
       --accent2: #7B7EF4;
-      --grad: linear-gradient(135deg, #3AA3E4 0%, #6D70E8 100%);
+      --grad: linear-gradient(135deg, #3AA3E4, #6D70E8 55%, #9B5CF6);
       --danger: #E56A5E; --ok: #5CB884; --pending: #D8A254;
       /* tdesktop night: msgInBg #182533, windowFg #F5F5F5, windowBgOver #232E3C,
          windowSubTextFg #708499, windowActiveTextFg #6AB2F2 */
@@ -39,11 +44,32 @@
       --shadow-bubble: 0 1px 2px rgba(0,0,0,.4);
     }
   }
-  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: none !important; /* Убираем скроллбар везде */
+    -ms-overflow-style: none !important;
+  }
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
   html, body { height: 100%; }
-  /* Канва документа — в цвет панелей: iOS красит ею области за пределами
-     вьюпорта (статус-бар, зона home-индикатора), полосы сливаются с шапкой */
-  html { background: var(--surface); }
+  /* Канва документа — в цвет фона: iOS красит ею области за пределами
+     вьюпорта (статус-бар, зона home-индикатора) */
+  html { background: var(--bg); }
+  /* Аврора: три пятна на фиксированном слое под интерфейсом */
+  .aurora { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(70px); }
+  .aurora i { position: absolute; border-radius: 50%; }
+  .aurora .b1 { width: 46vw; height: 44vh; left: 4%; top: 0; background: var(--a1); animation: audrift1 11s ease-in-out infinite alternate; }
+  .aurora .b2 { width: 40vw; height: 42vh; right: 2%; top: 16%; background: var(--a2); animation: audrift2 13s ease-in-out infinite alternate; }
+  .aurora .b3 { width: 36vw; height: 36vh; left: 34%; bottom: 4%; background: var(--a3); animation: audrift3 9s ease-in-out infinite alternate; }
+  @keyframes audrift1 { to { transform: translate(7vw, 6vh) scale(1.12); } }
+  @keyframes audrift2 { to { transform: translate(-6vw, 8vh) scale(.94); } }
+  @keyframes audrift3 { to { transform: translate(5vw, -5vh) scale(1.08); } }
+  @media (prefers-reduced-motion: reduce) { .aurora i { animation: none; } }
   body {
     background: var(--bg); color: var(--ink);
     font: 14px/1.5 "Inter", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
@@ -53,11 +79,17 @@
   input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  /* ═══ Каркас: боковая панель + контент ═══ */
-  #app { display: grid; grid-template-columns: 232px 1fr; height: 100dvh; }
+  /* ═══ Каркас: боковая панель + контент, панели плавают на авроре ═══ */
+  #app {
+    position: relative; z-index: 1;
+    display: grid; grid-template-columns: 236px 1fr; height: 100dvh;
+    gap: 14px; padding: 14px;
+  }
   #sidebar {
-    background: var(--surface); border-right: 1px solid var(--line);
-    display: flex; flex-direction: column; padding: 20px 12px 16px;
+    background: var(--glass); border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    display: flex; flex-direction: column; padding: 18px 12px 14px;
   }
   .brand {
     display: flex; align-items: center; gap: 10px; padding: 0 10px 20px;
@@ -72,19 +104,29 @@
   #sidebar nav { display: flex; flex-direction: column; gap: 2px; }
   #sidebar nav a {
     display: flex; align-items: center; gap: 11px; padding: 10px 12px;
-    border-radius: var(--r-pill); font-size: 13.5px; font-weight: 500; color: var(--muted);
-    text-align: left;
+    border-radius: 12px; font-size: 13.5px; font-weight: 500; color: var(--muted);
+    text-align: left; border: 1.2px solid transparent;
     text-decoration: none; cursor: pointer; /* NavLink — это <a>, а не button */
   }
   #sidebar nav a svg { flex: 0 0 auto; }
   #sidebar nav a .cnt {
     margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted);
-    background: var(--bg); border-radius: var(--r-pill); padding: 1px 7px;
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+    border-radius: var(--r-pill); padding: 1px 7px;
   }
-  #sidebar nav a:hover { background: var(--bg); }
-  #sidebar nav a.active { background: color-mix(in srgb, var(--accent) 11%, transparent); color: var(--accent); }
-  #sidebar nav a.active .cnt { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-  #sidebar .foot { margin-top: auto; padding: 10px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+  #sidebar nav a:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink); }
+  #sidebar nav a.active {
+    color: var(--ink); font-weight: 600;
+    background: linear-gradient(color-mix(in srgb, var(--surface) 45%, transparent),
+                                color-mix(in srgb, var(--surface) 45%, transparent)) padding-box,
+                var(--grad) border-box;
+    border-color: transparent;
+  }
+  #sidebar nav a.active .cnt { background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink); }
+  #sidebar .foot {
+    margin-top: auto; padding: 12px 10px 0; font-size: 11.5px; color: var(--muted);
+    line-height: 1.5; border-top: 1px solid var(--line);
+  }
   #sidebar .foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
   #sidebar .foot a:hover { text-decoration: underline; }
 
@@ -98,12 +140,14 @@
   #sideToggle {
     position: absolute; right: -13px; top: 50%; transform: translateY(-50%);
     width: 13px; height: 48px; border-radius: 0 6px 6px 0; color: var(--muted);
-    background: var(--surface); border: 1px solid var(--line); border-left: none;
+    background: var(--glass); border: 1px solid var(--line); border-left: none;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     display: grid; place-items: center; z-index: 9; padding: 0;
   }
   #sideToggle svg { width: 10px; height: 10px; }
-  #sideToggle:hover { color: var(--accent); background: var(--bg); }
+  #sideToggle:hover { color: var(--accent); }
   #app.side-collapsed { grid-template-columns: 64px 1fr; }
+  #app.side-collapsed #sidebar { border-radius: var(--r-panel); }
   #app.side-collapsed #sidebar { padding: 20px 9px 16px; }
   #app.side-collapsed .brand { justify-content: center; padding: 0 0 16px; }
   #app.side-collapsed .brand-text { display: none; }
@@ -136,25 +180,33 @@
   .view { flex: 1; display: none; flex-direction: column; overflow: hidden; }
   .view.active { display: flex; }
 
-  /* ═══ Редактор: сплит ═══ */
-  .workspace { flex: 1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); overflow: hidden; }
+  /* ═══ Редактор: сплит из двух плавающих панелей ═══ */
+  .workspace {
+    flex: 1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    overflow: hidden; gap: 14px;
+  }
   .pane { display: flex; flex-direction: column; overflow: hidden; }
   .pane-h {
     flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
-    padding: 14px 20px 10px; font-size: 12px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: .07em;
+    padding: 15px 20px 10px; color: var(--ink);
+    font-family: 'Unbounded', system-ui, sans-serif; font-weight: 800; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .08em;
   }
+  .pane-h #draftState { font-family: "Inter", -apple-system, system-ui, sans-serif; color: var(--muted); }
   .pane-h .spacer { flex: 1; }
-  /* Белая подложка — только у поля ввода и нижней панели; шапка «Разметка»
-     остаётся на общем фоне */
-  .editor-pane { border-right: 1px solid var(--line); }
-  .editor-pane #md, .editor-pane .editor-foot { background: var(--surface); }
+  .editor-pane {
+    background: var(--glass); border: 1px solid var(--line); border-radius: var(--r-panel);
+    backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  }
+  /* Предпросмотр — витрина с тонкой градиентной рамкой */
+  .preview-pane {
+    border: 1.2px solid transparent; border-radius: var(--r-panel);
+    background: linear-gradient(var(--chat-bg), var(--chat-bg)) padding-box, var(--grad) border-box;
+  }
 
   .toolbar {
-    display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 48px 10px 20px;
-    flex: 0 0 auto; background: var(--bg); border-top: 1px solid var(--line-soft);
-    border-bottom: 1px solid var(--line-soft);
-    position: relative;
+    display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 48px 10px 16px;
+    flex: 0 0 auto; position: relative;
   }
   /* свёрнуто: видны первые две группы и AI, остальные скрыты полностью */
   .toolbar:not(.open) .group:nth-child(n+3):not(.ai-group) { display: none; }
@@ -162,47 +214,44 @@
   .ai-busy svg { animation: aispin 1.1s linear infinite; }
   @keyframes aispin { to { transform: rotate(360deg); } }
   #toolsToggle {
-    position: absolute; top: 10px; right: 14px; width: 30px; height: 31px;
+    position: absolute; top: 2px; right: 14px; width: 30px; height: 31px;
     display: grid; place-items: center; color: var(--muted);
-    border: 1px solid var(--line-soft); border-radius: var(--r-pill);
-    background: var(--surface);
+    border: 1px solid var(--line); border-radius: 9px;
+    background: transparent;
   }
   #toolsToggle:hover { color: var(--accent); }
   .toolbar.open #toolsToggle svg { transform: rotate(180deg); }
   .toolbar .group {
-    display: flex; border: 1px solid var(--line-soft); border-radius: var(--r-pill); overflow: hidden;
-    background: var(--surface);
+    display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background: transparent;
   }
   .toolbar .group button {
     padding: 6px 10px; font-size: 12.5px; color: var(--muted); font-weight: 600;
     border-right: 1px solid var(--line-soft); min-width: 34px;
+    display: grid; place-items: center;
   }
   .toolbar .group button:last-child { border-right: none; }
-  .toolbar .group button:hover { background: var(--bg); color: var(--ink); }
+  .toolbar .group button:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink); }
   .toolbar .group button b { font-weight: 800; }
   .toolbar .group button svg { display: block; }
   .toolbar .group:has(.media-wrap) { overflow: visible; }
   .media-wrap { position: relative; display: flex; }
   .media-menu {
     position: absolute; top: calc(100% + 6px); left: 0; z-index: 8;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(24,32,43,.12); overflow: hidden; min-width: 150px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-flat);
+    box-shadow: 0 12px 32px rgba(0,0,0,.18); overflow: hidden; min-width: 150px;
   }
   .media-menu button {
     display: block; width: 100%; text-align: left; padding: 10px 14px;
     font-size: 13px; font-weight: 500; border-right: none !important;
   }
-  .media-menu button:hover { background: var(--bg); }
+  .media-menu button:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
   .media-menu button + button { border-top: 1px solid var(--line-soft); }
   .toolbar .group button i { font-family: Georgia, serif; }
   .emoji-menu {
     display: grid; grid-template-columns: repeat(9, 42px); gap: 2px; padding: 10px;
     max-height: min(480px, 60vh); overflow-y: auto;
-    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
   }
-  .emoji-menu::-webkit-scrollbar { width: 6px; }
-  .emoji-menu::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
-  .emoji-menu::-webkit-scrollbar-track { background: transparent; }
   /* строки каталога паков — на всю ширину сетки пикера */
   .emoji-menu .packrow {
     grid-column: 1 / -1; text-align: left; padding: 8px 10px; border-radius: 8px;
@@ -218,7 +267,7 @@
   .emoji-menu .em img { width: 30px; height: 30px; display: block; }
   /* стандартные юникод-эмодзи: символ тем же размером, что и картинки */
   .emoji-menu .em .uni { font-size: 24px; line-height: 30px; display: block; }
-  .emoji-menu .em:hover { background: var(--bg); }
+  .emoji-menu .em:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
   .emoji-hint {
     grid-column: 1 / -1; padding: 8px 10px; font-size: 12.5px;
     color: var(--muted); line-height: 1.5; max-width: 220px;
@@ -229,20 +278,23 @@
   }
 
   #md {
-    flex: 1; width: 100%; padding: 10px 20px 16px; border: none; outline: none;
-    resize: none; background: transparent; color: var(--ink);
+    flex: 1; width: auto; margin: 0 16px; padding: 13px 16px; outline: none;
+    resize: none; color: var(--ink);
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    border: 1px solid var(--line); border-radius: var(--r-flat);
     font: 14px/1.65 "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   }
+  #md:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 
   .editor-foot {
-    flex: 0 0 auto; border-top: 1px solid var(--line-soft); padding: 12px 20px;
+    flex: 0 0 auto; padding: 12px 16px 14px;
     display: flex; gap: 8px; align-items: center;
   }
   .editor-foot > .btn { flex: 1; }
   select#target {
-    width: 100%; padding: 11px 32px 11px 12px; border: 1px solid var(--line);
+    width: 100%; padding: 11px 32px 11px 14px; border: 1px solid var(--line);
     border-radius: var(--r-pill); margin-bottom: 12px;
-    background: var(--bg) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
+    background: transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
     appearance: none;
   }
   .pub-wrap { position: relative; flex: 1; display: flex; }
@@ -251,23 +303,26 @@
   .pub-menu {
     position: absolute; bottom: calc(100% + 8px); right: 0; min-width: 100%;
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-flat);
-    box-shadow: 0 10px 30px rgba(24,32,43,.12); overflow: hidden; z-index: 8;
+    box-shadow: 0 12px 32px rgba(0,0,0,.18); overflow: hidden; z-index: 8;
   }
   .pub-menu button {
     display: block; width: 100%; text-align: left; padding: 11px 16px;
     font-size: 13.5px; font-weight: 500;
   }
-  .pub-menu button:hover { background: var(--bg); }
+  .pub-menu button:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
   .pub-menu button + button { border-top: 1px solid var(--line-soft); }
   .btn {
     padding: 10px 18px; border-radius: var(--r-pill); font-size: 13.5px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
     transition: filter .12s, background .12s;
   }
-  .btn.primary { background: var(--grad); color: #fff; }
+  .btn.primary {
+    background: var(--grad); color: #fff;
+    box-shadow: 0 8px 24px -10px rgba(99, 102, 241, .55);
+  }
   .btn.primary:hover { filter: brightness(1.07); }
-  .btn.ghost { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-  .btn.ghost:hover { background: var(--bg); }
+  .btn.ghost { border: 1px solid var(--line); background: transparent; color: var(--muted); }
+  .btn.ghost:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); color: var(--ink); }
   .btn:disabled { opacity: .45; pointer-events: none; }
 
   /* ═══ Предпросмотр: чат Telegram ═══ */
@@ -278,7 +333,8 @@
   }
   .tg-btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   #chat {
-    flex: 1; overflow-y: auto; background: var(--chat-bg);
+    flex: 1; overflow-y: auto; border-radius: 0 0 var(--r-panel) var(--r-panel);
+    background: transparent;
     background-image:
       radial-gradient(circle at 20% 30%, color-mix(in srgb, var(--accent) 4%, transparent) 0 2px, transparent 2px),
       radial-gradient(circle at 70% 65%, color-mix(in srgb, var(--accent) 3%, transparent) 0 1.5px, transparent 1.5px);
@@ -506,9 +562,10 @@
 
   /* ═══ Списки ═══ */
   .page { flex: 1; overflow-y: auto; padding: 22px 26px; max-width: 760px; }
-  .page h2 { font-size: 19px; letter-spacing: -.01em; margin-bottom: 16px; }
+  .page h2 { font-family: 'Unbounded', system-ui, sans-serif; font-weight: 800; font-size: 15px; margin-bottom: 16px; }
   .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-flat);
+    background: var(--glass); border: 1px solid var(--line); border-radius: var(--r-flat);
+    backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
     padding: 13px 16px; margin-bottom: 8px; box-shadow: var(--shadow-card);
     display: flex; align-items: center; gap: 14px;
   }
@@ -543,16 +600,16 @@
     border-radius: var(--r-flat); }
   .show-more { width: 100%; margin-top: 4px; }
   .sched-filter {
-    width: 100%; padding: 10px 32px 10px 12px; border: 1px solid var(--line);
+    width: 100%; padding: 10px 32px 10px 14px; border: 1px solid var(--line);
     border-radius: var(--r-pill); margin-bottom: 14px; appearance: none;
-    background: var(--surface) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
+    background: transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="%237A8691" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>') no-repeat right 12px center;
   }
   .section-h { font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: 22px 2px 10px; }
   .empty-state { text-align: center; color: var(--muted); padding: 56px 24px; font-size: 13.5px; line-height: 1.6; }
   .add-row { display: flex; gap: 8px; margin-bottom: 16px; }
   .add-row input {
     flex: 1; padding: 10px 15px; border: 1px solid var(--line); border-radius: var(--r-pill);
-    background: var(--surface); outline: none;
+    background: color-mix(in srgb, var(--surface) 50%, transparent); outline: none;
   }
   .add-row input:focus { border-color: var(--accent); }
   .hint { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: 16px; }
@@ -561,13 +618,15 @@
   #sheet { position: fixed; inset: 0; background: rgba(10,16,22,.5); display: none; place-items: center; z-index: 10; }
   #sheet.open { display: grid; }
   #sheet .panel {
-    background: var(--surface); width: min(380px, calc(100vw - 32px));
-    border-radius: var(--r-flat); padding: 24px; box-shadow: 0 18px 50px rgba(0,0,0,.22);
+    background: var(--glass); border: 1px solid var(--line);
+    backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    width: min(380px, calc(100vw - 32px));
+    border-radius: var(--r-panel); padding: 24px; box-shadow: 0 18px 50px rgba(0,0,0,.22);
   }
   #sheet h3 { font-size: 16px; margin-bottom: 14px; }
   #sheet input[type=datetime-local] {
     width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--r-pill);
-    background: var(--bg); margin-bottom: 14px;
+    background: color-mix(in srgb, var(--bg) 55%, transparent); margin-bottom: 14px;
   }
   #sheet .row { display: flex; gap: 8px; }
   #sheet .row .btn { flex: 1; }
@@ -579,22 +638,22 @@
   }
   #login.open { display: grid; }
   #login .panel {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-flat);
+    background: var(--glass); border: 1px solid var(--line); border-radius: var(--r-panel);
+    backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4);
     padding: 28px 26px; width: min(360px, 100%); text-align: center;
-    box-shadow: var(--shadow-card);
   }
   #login .logo-big {
     width: 54px; height: 54px; border-radius: 15px;
     background: color-mix(in srgb, var(--ink) 6%, transparent);
     display: grid; place-items: center; margin: 0 auto 14px;
   }
-  #login .panel { border-radius: var(--r-flat); }
   #login h3 { font-size: 17px; margin-bottom: 10px; }
   #login p { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
-  #login p code { background: var(--bg); padding: 1px 6px; border-radius: 5px; }
+  #login p code { background: color-mix(in srgb, var(--ink) 8%, transparent); padding: 1px 6px; border-radius: 5px; }
   #login input {
     width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-pill);
-    background: var(--bg); text-align: center; font-size: 22px; letter-spacing: 8px;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    text-align: center; font-size: 22px; letter-spacing: 8px;
     outline: none; margin-bottom: 12px;
   }
   #login input:focus { border-color: var(--accent); }
@@ -622,7 +681,8 @@
   /* ═══ Переключатель «Разметка / Предпросмотр» (только мобильные) ═══ */
   .mseg {
     display: none; margin: 10px 14px 0; border: 1px solid var(--line);
-    border-radius: var(--r-pill); overflow: hidden; background: var(--surface);
+    border-radius: var(--r-pill); overflow: hidden;
+    background: color-mix(in srgb, var(--surface) 45%, transparent);
     flex: 0 0 auto;
   }
   .mseg button {
@@ -639,11 +699,19 @@
   @media (max-width: 900px) {
     /* Шапка и нижняя навигация — «стекло» поверх контента:
        фиксированные, полупрозрачные, контент скроллится под ними */
-    #app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr); }
+    #app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr); gap: 0; padding: 0; }
+    .pane, .editor-pane, .preview-pane {
+      border: none; border-radius: 0; background: transparent;
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    .preview-pane { background: var(--chat-bg); }
+    #chat { border-radius: 0; }
+    #md { margin: 0 14px; }
+    #sidebar { border-radius: 0; }
     #sidebar {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
       flex-direction: row; align-items: stretch; height: auto;
-      border-right: none; border-top: 1px solid var(--line);
+      border: none; border-top: 1px solid var(--line);
       /* стандартный inset (34px) оставляет слишком много пустого стекла
          под кнопками — прижимаем меню ниже, оставляя зазор над индикатором */
       padding: 0 0 max(calc(env(safe-area-inset-bottom) - 16px), 0px);
@@ -689,7 +757,7 @@
     /* Панель инструментов — одна строка с прокруткой */
     .toolbar {
       flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none; padding: 10px 14px;
+      scrollbar-width: none; padding: 6px 14px 10px;
     }
     .toolbar:not(.open) .group:nth-child(n+3):not(.ai-group) { display: flex; }
     #toolsToggle { display: none; }

@@ -28,6 +28,8 @@ export default function App() {
 
   return (
     <div id="app" className={collapsed ? 'side-collapsed' : ''}>
+      {/* Аврора-фон: дрейфующие пятна за стеклянными панелями (см. app.css) */}
+      <div className="aurora" aria-hidden="true"><i className="b1" /><i className="b2" /><i className="b3" /></div>
       <Sidebar onToggle={toggleSidebar} />
       <div id="content">
         <MobileTopBar />
