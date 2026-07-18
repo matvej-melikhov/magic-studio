@@ -56,7 +56,19 @@
       --shadow-bubble: 0 1px 2px rgba(0,0,0,.4);
     }
   }
-  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
   html, body { height: 100%; }
   /* Канва документа — в цвет панелей: iOS красит ею области за пределами
      вьюпорта (статус-бар, зона home-индикатора), полосы сливаются с шапкой */
